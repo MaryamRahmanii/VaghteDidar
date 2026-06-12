@@ -7,17 +7,20 @@ import Login from './pages/auth/login';
 import LoginOtp from './pages/auth/login-otp';
 import Signup from './pages/auth/signup';
 import SignupOtp from './pages/auth/signup-otp';
+import MainLayout from './layouts/MainLayout';
 
 function App() {
   
-  const isAuthenticated = true; 
+  const isAuthenticated = false; 
 
   return (
     <BrowserRouter>
       <Routes>
         
+        <Route element={<MainLayout />}>
+           <Route path="/" element={<Landing />} />
+        </Route>
         
-        <Route path="/" element={<Landing />} />
 
         
         <Route element={<AuthLayout />}>
