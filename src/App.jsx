@@ -8,6 +8,7 @@ import LoginOtp from './pages/auth/login-otp';
 import Signup from './pages/auth/signup';
 import SignupOtp from './pages/auth/signup-otp';
 import MainLayout from './layouts/MainLayout';
+import Profile from './pages/users/profile';
 
 function App() {
   
@@ -19,6 +20,7 @@ function App() {
         
         <Route element={<MainLayout />}>
            <Route path="/" element={<Landing />} />
+           <Route path="/profile" element={<Profile />} />
         </Route>
         
 
