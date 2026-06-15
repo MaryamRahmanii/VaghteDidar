@@ -1,16 +1,23 @@
-import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useContext } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
+
+
+import { UserContext } from './context/user-context'; 
 
 const Profile = () => {
+  
+  const { userData } = useContext(UserContext);
+
   const [activeTab, setActiveTab] = useState('آینده');
   const [showAllNotifs, setShowAllNotifs] = useState(false);
-  const [isPendingActive, setIsPendingActive] = useState(true);
-  const [showDetailsModal, setShowDetailsModal] = useState(false);
   
+  const [selectedAppointmentDetails, setSelectedAppointmentDetails] = useState(null);
   const [showNewReserveModal, setShowNewReserveModal] = useState(false);
   const [organizerId, setOrganizerId] = useState('');
-  
+  const [showLimitModal, setShowLimitModal] = useState(false);
+
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [appointments, setAppointments] = useState([
     { id: 1, name: 'دکتر احمدی', spec: 'متخصص روانشناسی', title: 'مشاوره', date: 'شش خرداد', time: 'ساعت ۵:۰۰', status: 'آینده', color: 'bg-pink-100', seed: 'Jane' },
@@ -18,55 +25,100 @@ const Profile = () => {
     { id: 3, name: 'دکتر حسینی', spec: 'پزشک عمومی', title: 'چکاپ سالانه', date: 'دو اردیبهشت', time: 'ساعت ۱۰:۰۰', status: 'گذشته', color: 'bg-blue-100', seed: 'Jack' },
   ]);
 
-  const allNotifications = [
+  const [notifications, setNotifications] = useState([
     { id: 1, type: 'success', title: 'رزرو شما تایید شد', desc: 'تایید نوبت مشاوره با دکتر احمدی', time: 'ده دقیقه پیش', unread: true },
     { id: 2, type: 'message', title: 'پیام جدید از برگزار کننده', desc: 'لطفا قبل از جلسه فرم ارزیابی را تکمیل کنید', time: 'دو ساعت پیش', unread: true },
     { id: 3, type: 'cancel', title: 'لغو نوبت گفتگو', desc: 'نوبت مشاوره شما توسط سیستم لغو شد', time: 'یک روز پیش', unread: false },
     { id: 4, type: 'reminder', title: 'یادآوری جلسه', desc: 'کمتر از ۲۴ ساعت تا زمان جلسه باقی مانده است', time: 'دو روز پیش', unread: false },
-  ];
+  ]);
 
-  const handleCancelAppointment = () => {
-    setIsPendingActive(false);
-    const canceledAppointment = {
-      id: Date.now(),
-      name: 'دکتر احمدی',
-      spec: 'متخصص روانشناسی',
-      title: 'مشاوره',
-      date: 'شش خرداد',
-      time: 'ساعت ۵:۰۰',
-      status: 'لغو شده',
-      color: 'bg-pink-100',
-      seed: 'Jane'
-    };
-    setAppointments(prev => [canceledAppointment, ...prev]);
+  const activeAppointments = appointments.filter(app => app.status === 'آینده');
+  const activeAppointmentsCount = activeAppointments.length;
+
+  useEffect(() => {
+    if (location.state && location.state.newBooking) {
+      if (activeAppointmentsCount >= 2) {
+        setShowLimitModal(true);
+        navigate(location.pathname, { replace: true, state: {} });
+        return;
+      }
+
+      const newAppt = location.state.newBooking;
+      
+      setAppointments(prev => [newAppt, ...prev]);
+      
+      const newNotif = {
+        id: Date.now(),
+        type: 'success',
+        title: 'درخواست شما تایید شد!',
+        desc: `تایید نوبت ${newAppt.title} با ${newAppt.name}`,
+        time: 'همین الان',
+        unread: true
+      };
+      setNotifications(prev => [newNotif, ...prev]);
+
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location.state, navigate, location.pathname, activeAppointmentsCount]);
+
+  const handleCancelAppointment = (idToCancel) => {
+    setAppointments(prevAppointments => 
+      prevAppointments.map(app => 
+        app.id === idToCancel ? { ...app, status: 'لغو شده' } : app
+      )
+    );
   };
 
   const handleSearchOrganizer = (e) => {
     e.preventDefault();
     if(organizerId.trim()) {
-      navigate(`/organizer/${organizerId.trim()}`);
+      navigate(`/public-organizer-dashboard`, { state: { orgId: organizerId.trim() } });
     }
   };
 
-  const activeAppointmentsCount = appointments.filter(app => app.status === 'آینده').length;
   const filteredAppointments = appointments.filter(app => app.status === activeTab);
-  const displayedNotifs = showAllNotifs ? allNotifications : allNotifications.slice(0, 2);
+  const displayedNotifs = showAllNotifs ? notifications : notifications.slice(0, 2);
 
   return (
     <div className="container mx-auto px-4 sm:px-6 py-8" dir="rtl">
       
-      {showDetailsModal && (
+      
+      {showLimitModal && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white dark:bg-[#1f2937] border border-red-100 dark:border-red-900/50 p-6 rounded-2xl max-w-sm w-full shadow-2xl text-center">
+            <div className="w-12 h-12 bg-red-100 dark:bg-red-900/30 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-6 h-6">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m0-10.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.75c0 5.592 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.57-.598-3.75h-.152c-3.196 0-6.1-1.249-8.25-3.286zm0 13.036h.008v.008H12v-.008z" />
+              </svg>
+            </div>
+            <h3 className="font-bold text-lg text-gray-800 dark:text-white mb-2">سقف نوبت‌های فعال</h3>
+            <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mb-6 leading-relaxed">
+              شما در حال حاضر <span className="font-bold text-red-500">۲ نوبت فعال</span> دارید. برای ثبت رزرو جدید، ابتدا باید نوبت‌های قبلی خود را به اتمام برسانید یا آن‌ها را لغو کنید.
+            </p>
+            <button 
+              onClick={() => setShowLimitModal(false)} 
+              className="w-full bg-red-500 hover:bg-red-600 text-white rounded-lg py-2.5 text-sm font-bold transition-colors"
+            >
+              متوجه شدم
+            </button>
+          </div>
+        </div>
+      )}
+
+      
+      {selectedAppointmentDetails && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
           <div className="bg-white dark:bg-[#1a2235] border border-blue-100 dark:border-gray-700 p-6 rounded-2xl max-w-sm w-full shadow-2xl">
             <h3 className="font-bold text-lg text-gray-800 dark:text-white mb-4 border-b border-gray-100 dark:border-gray-700 pb-2">جزئیات رزرو</h3>
             <div className="space-y-3 mb-6 text-sm text-gray-600 dark:text-gray-300">
-              <p><strong className="text-gray-800 dark:text-gray-200">برگزار کننده:</strong> دکتر احمدی</p>
-              <p><strong className="text-gray-800 dark:text-gray-200">زمان:</strong> شش خرداد، ساعت ۵:۰۰</p>
+              <p><strong className="text-gray-800 dark:text-gray-200">برگزار کننده:</strong> {selectedAppointmentDetails.name}</p>
+              <p><strong className="text-gray-800 dark:text-gray-200">عنوان جلسه:</strong> {selectedAppointmentDetails.title}</p>
+              <p><strong className="text-gray-800 dark:text-gray-200">زمان:</strong> {selectedAppointmentDetails.date}، {selectedAppointmentDetails.time}</p>
               <p><strong className="text-gray-800 dark:text-gray-200">محل برگزاری:</strong> آنلاین (Google Meet)</p>
-              <p><strong className="text-gray-800 dark:text-gray-200">هزینه:</strong> پرداخت شده</p>
+              <p><strong className="text-gray-800 dark:text-gray-200">وضعیت:</strong> پرداخت شده</p>
             </div>
             <button 
-              onClick={() => setShowDetailsModal(false)} 
+              onClick={() => setSelectedAppointmentDetails(null)} 
               className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-lg py-2.5 text-sm font-bold transition-colors"
             >
               بستن
@@ -75,6 +127,7 @@ const Profile = () => {
         </div>
       )}
 
+     
       {showNewReserveModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
           <div className="bg-white dark:bg-[#1f2937] border border-blue-100 dark:border-gray-700 p-6 sm:p-8 rounded-2xl max-w-sm w-full shadow-2xl">
@@ -86,11 +139,9 @@ const Profile = () => {
                 </svg>
               </button>
             </div>
-            
             <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mb-6 leading-relaxed">
               برای ثبت نوبت، شناسه (ID) اختصاصی شخص یا کسب‌و‌کار مورد نظر را وارد کنید.
             </p>
-
             <form onSubmit={handleSearchOrganizer} className="space-y-4">
               <div>
                 <input 
@@ -116,6 +167,7 @@ const Profile = () => {
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 items-start">
         
+       
         <div className="xl:col-span-1 order-last xl:order-1 bg-white dark:bg-[#1a2235] border border-blue-100 dark:border-gray-700 rounded-2xl p-5 sm:p-6 shadow-sm flex flex-col h-fit">
           <h3 className="font-bold text-lg text-gray-800 dark:text-white mb-6 text-center sm:text-right">اعلان ها</h3>
           <div className="flex flex-col space-y-4">
@@ -166,20 +218,32 @@ const Profile = () => {
           </div>
         </div>
 
+       
         <div className="xl:col-span-2 order-first xl:order-2 space-y-6">
           
           <div className="bg-white dark:bg-[#1a2235] border border-blue-100 dark:border-gray-700 rounded-2xl p-6 shadow-sm flex flex-col sm:flex-row justify-between items-center sm:items-start gap-6">
             <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 sm:gap-6 w-full sm:w-auto text-center sm:text-right">
-              <div className="w-24 h-24 bg-[#ef4444] rounded-full flex-shrink-0 overflow-hidden border-4 border-white dark:border-[#1a2235] shadow-md">
-                <img src="./src/assets/profile.png" alt="آواتار" className="w-full h-full object-cover scale-110 " />
+              
+              
+              <div className="w-24 h-24 bg-gray-200 dark:bg-gray-700 rounded-full flex-shrink-0 overflow-hidden border-4 border-white dark:border-[#1a2235] shadow-md">
+                {userData.avatar ? (
+                  <img src={userData.avatar} alt="آواتار" className="w-full h-full object-cover" />
+                ) : (
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-full h-full text-gray-400 p-4">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
+                  </svg>
+                )}
               </div>
+
               <div className="space-y-1.5 pt-2">
-                <h2 className="text-xl font-bold text-gray-800 dark:text-white">فلان فلانی</h2>
+               
+                <h2 className="text-xl font-bold text-gray-800 dark:text-white">{userData.name}</h2>
                 <div className="flex items-center justify-center sm:justify-start text-xs text-blue-500 dark:text-blue-400 font-medium">
                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5 ml-1">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 0 0 2.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-2.896-1.596-5.265-3.965-6.861-6.861l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 0 0-1.091-.852H4.5A2.25 2.25 0 0 0 2.25 4.5v2.25Z" />
                   </svg>
-                  <span dir="ltr">۰۹۹۱ ۶۶۵۰۲۲۱</span>
+                  
+                  <span dir="ltr">{userData.phone}</span>
                 </div>
                 <div className="inline-flex items-center gap-1 bg-green-100 dark:bg-green-900/40 text-green-600 dark:text-green-400 rounded-full px-3 py-1.5 mt-2 text-[11px] font-bold">
                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3.5 h-3.5">
@@ -191,7 +255,6 @@ const Profile = () => {
             </div>
 
             <div className="flex flex-col gap-3 w-full sm:w-32 flex-shrink-0">
-              
               <Link 
                 to="/edit-profile" 
                 className="w-full py-2 border-2 border-blue-400 text-blue-500 dark:text-blue-400 bg-white dark:bg-transparent hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg text-sm font-bold transition-colors text-center"
@@ -200,7 +263,13 @@ const Profile = () => {
               </Link>
               
               <button 
-                onClick={() => setShowNewReserveModal(true)} 
+                onClick={() => {
+                  if (activeAppointmentsCount >= 2) {
+                    setShowLimitModal(true);
+                  } else {
+                    setShowNewReserveModal(true);
+                  }
+                }} 
                 className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-bold transition-colors shadow-lg shadow-blue-500/30"
               >
                 رزرو جدید
@@ -208,7 +277,8 @@ const Profile = () => {
             </div>
           </div>
 
-          {isPendingActive && (
+          
+          {activeAppointmentsCount > 0 && (
             <div className="bg-white dark:bg-[#1a2235] border border-blue-100 dark:border-gray-700 rounded-2xl p-5 sm:p-6 shadow-sm transition-all duration-300">
               <div className="flex justify-between items-center mb-6 border-b border-gray-100 dark:border-gray-700 pb-4">
                 <h3 className="font-bold text-gray-800 dark:text-white">تایید رزرو</h3>
@@ -220,51 +290,59 @@ const Profile = () => {
                 </div>
               </div>
 
-              <div className="flex justify-between items-center text-center mb-8">
-                <div className="flex-1 space-y-2">
-                  <span className="text-xs text-gray-800 dark:text-gray-200 font-bold block">برگزار کننده</span>
-                  <div className="flex items-center justify-center text-xs text-gray-600 dark:text-gray-400 font-medium">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4 ml-1.5 text-blue-600 dark:text-blue-400">
-                      <path fillRule="evenodd" d="M7.5 6a4.5 4.5 0 1 1 9 0 4.5 4.5 0 0 1-9 0ZM3.751 20.105a8.25 8.25 0 0 1 16.498 0 .75.75 0 0 1-.437.695A18.683 18.683 0 0 1 12 22.5c-2.786 0-5.433-.608-7.812-1.7a.75.75 0 0 1-.437-.695Z" clipRule="evenodd" />
-                    </svg>
-                    دکتر احمدی
-                  </div>
-                </div>
-                
-                <div className="flex-1 space-y-2 border-x border-gray-200 dark:border-gray-700">
-                  <span className="text-xs text-gray-800 dark:text-gray-200 font-bold block">عنوان</span>
-                  <div className="flex items-center justify-center text-xs text-gray-600 dark:text-gray-400 font-medium">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 ml-1.5 text-blue-600 dark:text-blue-400">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
-                    </svg>
-                    مشاوره
-                  </div>
-                </div>
+              <div className="space-y-6">
+                {activeAppointments.map((appt, index) => (
+                  <div key={appt.id} className={index !== activeAppointmentsCount - 1 ? "border-b border-gray-100 dark:border-gray-700 pb-6" : ""}>
+                    
+                    <div className="flex justify-between items-center text-center mb-6">
+                      <div className="flex-1 space-y-2">
+                        <span className="text-xs text-gray-800 dark:text-gray-200 font-bold block">برگزار کننده</span>
+                        <div className="flex items-center justify-center text-xs text-gray-600 dark:text-gray-400 font-medium">
+                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4 ml-1.5 text-blue-600 dark:text-blue-400">
+                            <path fillRule="evenodd" d="M7.5 6a4.5 4.5 0 1 1 9 0 4.5 4.5 0 0 1-9 0ZM3.751 20.105a8.25 8.25 0 0 1 16.498 0 .75.75 0 0 1-.437.695A18.683 18.683 0 0 1 12 22.5c-2.786 0-5.433-.608-7.812-1.7a.75.75 0 0 1-.437-.695Z" clipRule="evenodd" />
+                          </svg>
+                          {appt.name}
+                        </div>
+                      </div>
+                      
+                      <div className="flex-1 space-y-2 border-x border-gray-200 dark:border-gray-700">
+                        <span className="text-xs text-gray-800 dark:text-gray-200 font-bold block">عنوان</span>
+                        <div className="flex items-center justify-center text-xs text-gray-600 dark:text-gray-400 font-medium">
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 ml-1.5 text-blue-600 dark:text-blue-400">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+                          </svg>
+                          {appt.title}
+                        </div>
+                      </div>
 
-                <div className="flex-1 space-y-2">
-                  <span className="text-xs text-gray-800 dark:text-gray-200 font-bold block">زمان</span>
-                  <div className="flex items-center justify-center text-xs text-gray-600 dark:text-gray-400 font-medium">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 ml-1.5 text-blue-600 dark:text-blue-400">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
-                    </svg>
-                    شش خرداد ساعت ۵:۰۰
-                  </div>
-                </div>
-              </div>
+                      <div className="flex-1 space-y-2">
+                        <span className="text-xs text-gray-800 dark:text-gray-200 font-bold block">زمان</span>
+                        <div className="flex items-center justify-center text-xs text-gray-600 dark:text-gray-400 font-medium">
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 ml-1.5 text-blue-600 dark:text-blue-400">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
+                          </svg>
+                          {appt.date} {appt.time}
+                        </div>
+                      </div>
+                    </div>
 
-              <div className="flex justify-end gap-3 border-t border-gray-100 dark:border-gray-700 pt-4 mt-2">
-                <button 
-                  onClick={() => setShowDetailsModal(true)} 
-                  className="px-5 py-1.5 border-2 border-blue-400 text-blue-500 bg-white dark:bg-transparent hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg text-xs font-bold transition-colors"
-                >
-                  مشاهده ی جزئیات
-                </button>
-                <button 
-                  onClick={handleCancelAppointment} 
-                  className="px-5 py-1.5 border-2 border-red-400 text-red-500 bg-white dark:bg-transparent hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg text-xs font-bold transition-colors"
-                >
-                  لغو نوبت
-                </button>
+                    <div className="flex justify-end gap-3 mt-2">
+                      <button 
+                        onClick={() => setSelectedAppointmentDetails(appt)} 
+                        className="px-5 py-1.5 border-2 border-blue-400 text-blue-500 bg-white dark:bg-transparent hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg text-xs font-bold transition-colors"
+                      >
+                        مشاهده ی جزئیات
+                      </button>
+                      <button 
+                        onClick={() => handleCancelAppointment(appt.id)} 
+                        className="px-5 py-1.5 border-2 border-red-400 text-red-500 bg-white dark:bg-transparent hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg text-xs font-bold transition-colors"
+                      >
+                        لغو نوبت
+                      </button>
+                    </div>
+
+                  </div>
+                ))}
               </div>
             </div>
           )}
@@ -294,7 +372,10 @@ const Profile = () => {
                   <div key={item.id} className="flex justify-between items-center bg-transparent border-b border-gray-100 dark:border-gray-700/50 last:border-0 pb-4 last:pb-0">
                     <div className="flex items-center gap-3">
                       <div className={`w-10 h-10 ${item.color} rounded-full overflow-hidden flex-shrink-0`}>
-                        <img src={`./src/assets/profile.png`} alt="دکتر" className="w-full h-full object-cover " />
+                         
+                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-full h-full text-blue-500 p-2 bg-blue-50 dark:bg-blue-900/30">
+                           <path fillRule="evenodd" d="M7.5 6a4.5 4.5 0 1 1 9 0 4.5 4.5 0 0 1-9 0ZM3.751 20.105a8.25 8.25 0 0 1 16.498 0 .75.75 0 0 1-.437.695A18.683 18.683 0 0 1 12 22.5c-2.786 0-5.433-.608-7.812-1.7a.75.75 0 0 1-.437-.695Z" clipRule="evenodd" />
+                         </svg>
                       </div>
                       <div>
                         <h4 className="text-sm font-bold text-gray-800 dark:text-gray-200">{item.name}</h4>
