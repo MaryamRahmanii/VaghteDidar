@@ -17,6 +17,8 @@ async def request_otp(phone_number: str):
         raise Exception()
 
     otp = _generate_otp()
+    
+    print(f"OTP for {phone_number} is: {otp}", flush=True)
 
     await redis_client.set(f"iam:otp:{phone_number}", otp, ex=settings.OTP_TTL)
 
@@ -43,6 +45,8 @@ async def verify_otp(phone_number: str, otp_code: str) -> str:
     if not stored or stored != otp_code:
         # raise HTTPException(status_code=401, detail="Invalid or expired OTP.")
         raise Exception()
+    
+
 
     await redis_client.delete(f"iam:otp:{phone_number}")
 

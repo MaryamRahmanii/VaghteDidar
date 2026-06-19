@@ -9,7 +9,7 @@ from app.domain.user_role import UserRole
 class User(Base):
     __tablename__ = "users"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     full_name = Column(String(255), nullable=False)
     phone_number = Column(String(15), unique=True, nullable=False, index=True)
     role = Column(Enum(UserRole), nullable=False, default=UserRole.registrant)

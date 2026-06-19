@@ -1,87 +1,78 @@
 import React, { useState, useEffect, useContext } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
-
-
-import { UserContext } from './context/user-context'; 
+import { Link } from 'react-router-dom';
+import { UserContext } from './context/user-context';
+import { bookingApi } from '../../services/api';
 
 const Profile = () => {
-  
   const { userData } = useContext(UserContext);
-
-  const [activeTab, setActiveTab] = useState('آینده');
-  const [showAllNotifs, setShowAllNotifs] = useState(false);
   
-  const [selectedAppointmentDetails, setSelectedAppointmentDetails] = useState(null);
+  
+  const [activeTab, setActiveTab] = useState('آینده');
+  const [appointments, setAppointments] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  
+  
   const [showNewReserveModal, setShowNewReserveModal] = useState(false);
-  const [organizerId, setOrganizerId] = useState('');
+  const [selectedAppointmentDetails, setSelectedAppointmentDetails] = useState(null);
   const [showLimitModal, setShowLimitModal] = useState(false);
+  const [organizerId, setOrganizerId] = useState('');
 
-  const navigate = useNavigate();
-  const location = useLocation();
-
-  const [appointments, setAppointments] = useState([
-    { id: 1, name: 'دکتر احمدی', spec: 'متخصص روانشناسی', title: 'مشاوره', date: 'شش خرداد', time: 'ساعت ۵:۰۰', status: 'آینده', color: 'bg-pink-100', seed: 'Jane' },
-    { id: 2, name: 'دکتر رضایی', spec: 'متخصص تغذیه', title: 'برنامه غذایی', date: 'شش خرداد', time: 'ساعت ۷:۰۰', status: 'آینده', color: 'bg-yellow-100', seed: 'Jocelyn' },
-    { id: 3, name: 'دکتر حسینی', spec: 'پزشک عمومی', title: 'چکاپ سالانه', date: 'دو اردیبهشت', time: 'ساعت ۱۰:۰۰', status: 'گذشته', color: 'bg-blue-100', seed: 'Jack' },
+ 
+  const [displayedNotifs, setDisplayedNotifs] = useState([
+    { id: 1, title: 'رزرو موفق', desc: 'نوبت شما با دکتر احمدی ثبت شد', time: '۱۰ دقیقه پیش', type: 'success', unread: true },
+    { id: 2, title: 'پیام پشتیبانی', desc: 'تغییر زمان نوبت شما...', time: '۱ ساعت پیش', type: 'message', unread: false }
   ]);
+  const [showAllNotifs, setShowAllNotifs] = useState(false);
 
-  const [notifications, setNotifications] = useState([
-    { id: 1, type: 'success', title: 'رزرو شما تایید شد', desc: 'تایید نوبت مشاوره با دکتر احمدی', time: 'ده دقیقه پیش', unread: true },
-    { id: 2, type: 'message', title: 'پیام جدید از برگزار کننده', desc: 'لطفا قبل از جلسه فرم ارزیابی را تکمیل کنید', time: 'دو ساعت پیش', unread: true },
-    { id: 3, type: 'cancel', title: 'لغو نوبت گفتگو', desc: 'نوبت مشاوره شما توسط سیستم لغو شد', time: 'یک روز پیش', unread: false },
-    { id: 4, type: 'reminder', title: 'یادآوری جلسه', desc: 'کمتر از ۲۴ ساعت تا زمان جلسه باقی مانده است', time: 'دو روز پیش', unread: false },
-  ]);
-
-  const activeAppointments = appointments.filter(app => app.status === 'آینده');
+  
+  const activeAppointments = appointments.filter(a => a.status === 'آینده');
   const activeAppointmentsCount = activeAppointments.length;
+  const filteredAppointments = appointments.filter(a => a.status === activeTab);
 
-  useEffect(() => {
-    if (location.state && location.state.newBooking) {
-      if (activeAppointmentsCount >= 2) {
-        setShowLimitModal(true);
-        navigate(location.pathname, { replace: true, state: {} });
-        return;
-      }
-
-      const newAppt = location.state.newBooking;
-      
-      setAppointments(prev => [newAppt, ...prev]);
-      
-      const newNotif = {
-        id: Date.now(),
-        type: 'success',
-        title: 'درخواست شما تایید شد!',
-        desc: `تایید نوبت ${newAppt.title} با ${newAppt.name}`,
-        time: 'همین الان',
-        unread: true
-      };
-      setNotifications(prev => [newNotif, ...prev]);
-
-      navigate(location.pathname, { replace: true, state: {} });
+  const fetchMyBookings = async () => {
+    setIsLoading(true);
+    try {
+      const response = await bookingApi.get('/bookings/me');
+      const formattedBookings = response.data.map(item => ({
+        id: item.id,
+        name: 'برگزار کننده',
+        title: 'مشاوره',
+        date: new Date(item.created_at).toLocaleDateString('fa-IR'),
+        time: '',
+        status: item.status === 'active' ? 'آینده' : (item.status === 'cancelled' ? 'لغو شده' : 'گذشته'),
+        color: 'bg-blue-100'
+      }));
+      setAppointments(formattedBookings);
+    } catch (error) {
+      console.error("خطا در دریافت نوبت‌ها", error);
+    } finally {
+      setIsLoading(false);
     }
-  }, [location.state, navigate, location.pathname, activeAppointmentsCount]);
+  };
 
-  const handleCancelAppointment = (idToCancel) => {
-    setAppointments(prevAppointments => 
-      prevAppointments.map(app => 
-        app.id === idToCancel ? { ...app, status: 'لغو شده' } : app
-      )
-    );
+  const handleCancelAppointment = async (idToCancel) => {
+    try {
+      await bookingApi.delete(`/bookings/${idToCancel}`, { data: { reason: "توسط کاربر لغو شد" } });
+      fetchMyBookings();
+      setSelectedAppointmentDetails(null);
+    } catch (error) {
+      alert("خطا در لغو نوبت");
+    }
   };
 
   const handleSearchOrganizer = (e) => {
     e.preventDefault();
-    if(organizerId.trim()) {
-      navigate(`/public-organizer-dashboard`, { state: { orgId: organizerId.trim() } });
-    }
+    console.log("جستجو برای:", organizerId);
+    
+    setShowNewReserveModal(false);
   };
 
-  const filteredAppointments = appointments.filter(app => app.status === activeTab);
-  const displayedNotifs = showAllNotifs ? notifications : notifications.slice(0, 2);
+  useEffect(() => {
+    fetchMyBookings();
+  }, []);
 
   return (
     <div className="container mx-auto px-4 sm:px-6 py-8" dir="rtl">
-      
       
       {showLimitModal && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
@@ -105,7 +96,6 @@ const Profile = () => {
         </div>
       )}
 
-      
       {selectedAppointmentDetails && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
           <div className="bg-white dark:bg-[#1a2235] border border-blue-100 dark:border-gray-700 p-6 rounded-2xl max-w-sm w-full shadow-2xl">
@@ -127,7 +117,6 @@ const Profile = () => {
         </div>
       )}
 
-     
       {showNewReserveModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
           <div className="bg-white dark:bg-[#1f2937] border border-blue-100 dark:border-gray-700 p-6 sm:p-8 rounded-2xl max-w-sm w-full shadow-2xl">
@@ -167,7 +156,6 @@ const Profile = () => {
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 items-start">
         
-       
         <div className="xl:col-span-1 order-last xl:order-1 bg-white dark:bg-[#1a2235] border border-blue-100 dark:border-gray-700 rounded-2xl p-5 sm:p-6 shadow-sm flex flex-col h-fit">
           <h3 className="font-bold text-lg text-gray-800 dark:text-white mb-6 text-center sm:text-right">اعلان ها</h3>
           <div className="flex flex-col space-y-4">
@@ -218,16 +206,14 @@ const Profile = () => {
           </div>
         </div>
 
-       
         <div className="xl:col-span-2 order-first xl:order-2 space-y-6">
           
           <div className="bg-white dark:bg-[#1a2235] border border-blue-100 dark:border-gray-700 rounded-2xl p-6 shadow-sm flex flex-col sm:flex-row justify-between items-center sm:items-start gap-6">
             <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 sm:gap-6 w-full sm:w-auto text-center sm:text-right">
               
-              
               <div className="w-24 h-24 bg-gray-200 dark:bg-gray-700 rounded-full flex-shrink-0 overflow-hidden border-4 border-white dark:border-[#1a2235] shadow-md">
-                {userData.avatar ? (
-                  <img src={userData.avatar} alt="آواتار" className="w-full h-full object-cover" />
+                {userData?.avatar ? (
+                  <img src={userData?.avatar} alt="آواتار" className="w-full h-full object-cover" />
                 ) : (
                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-full h-full text-gray-400 p-4">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
@@ -236,14 +222,12 @@ const Profile = () => {
               </div>
 
               <div className="space-y-1.5 pt-2">
-               
-                <h2 className="text-xl font-bold text-gray-800 dark:text-white">{userData.name}</h2>
+                <h2 className="text-xl font-bold text-gray-800 dark:text-white">{userData?.full_name || 'کاربر گرامی'}</h2>
                 <div className="flex items-center justify-center sm:justify-start text-xs text-blue-500 dark:text-blue-400 font-medium">
                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5 ml-1">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 0 0 2.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-2.896-1.596-5.265-3.965-6.861-6.861l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 0 0-1.091-.852H4.5A2.25 2.25 0 0 0 2.25 4.5v2.25Z" />
                   </svg>
-                  
-                  <span dir="ltr">{userData.phone}</span>
+                  <span dir="ltr">{userData?.phone_number}</span>
                 </div>
                 <div className="inline-flex items-center gap-1 bg-green-100 dark:bg-green-900/40 text-green-600 dark:text-green-400 rounded-full px-3 py-1.5 mt-2 text-[11px] font-bold">
                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3.5 h-3.5">
@@ -277,7 +261,6 @@ const Profile = () => {
             </div>
           </div>
 
-          
           {activeAppointmentsCount > 0 && (
             <div className="bg-white dark:bg-[#1a2235] border border-blue-100 dark:border-gray-700 rounded-2xl p-5 sm:p-6 shadow-sm transition-all duration-300">
               <div className="flex justify-between items-center mb-6 border-b border-gray-100 dark:border-gray-700 pb-4">

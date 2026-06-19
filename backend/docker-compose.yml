@@ -7,7 +7,7 @@ services:
       POSTGRES_PASSWORD: postgres
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./scripts/create_multiple_dbs.sh:/docker-entrypoint-initdb.d/create_multiple_dbs.sh
+      - ./scripts/create_multiple_dbs.sql:/docker-entrypoint-initdb.d/create_multiple_dbs.sql
     ports:
       - "5432:5432"
     restart: unless-stopped
@@ -62,23 +62,6 @@ services:
       INTERNAL_SERVICE_KEY: a3f8c2e1b7d4e9f0c6a2b8d3e7f1c4a9b2d6e0f3c8a1b5d9e2f7c0a4b8d1e6
     ports:
       - "8002:8000"
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    restart: unless-stopped
-
-  notification-worker:
-    build:
-      context: ./services/notification-service
-      dockerfile: Dockerfile
-    container_name: notification-worker
-    command: ["python", "-m", "app.worker"]
-    environment:
-      DATABASE_URL: postgresql+asyncpg://postgres:postgres@postgres/notification_db
-      REDIS_URL: redis://:redis@redis:6379
-      INTERNAL_SERVICE_KEY: a3f8c2e1b7d4e9f0c6a2b8d3e7f1c4a9b2d6e0f3c8a1b5d9e2f7c0a4b8d1e6
     depends_on:
       postgres:
         condition: service_healthy

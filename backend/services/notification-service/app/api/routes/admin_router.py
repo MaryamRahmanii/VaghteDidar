@@ -7,7 +7,7 @@ from app.infrastructure.repositories.notification_repository import (
     get_all_notifications, get_notification, get_notification_stats
 )
 
-router = APIRouter(prefix="/admin/notifications", tags=["Admin"])
+router = APIRouter(prefix="/admin", tags=["Admin"])
 
 
 @router.get(

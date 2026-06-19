@@ -1,9 +1,10 @@
-from fastapi import APIRouter, Header, Depends
-from typing import List
+from fastapi import APIRouter, Depends
 from sqlalchemy import select
 
 from app.database.database import get_db
 from app.database.redis import redis_client
+
+from app.domain.models.notifications import NotificationStatus
 
 from app.api.dependencies.api_dependency import verify_internal_key
 
@@ -14,8 +15,9 @@ from app.domain.schemas.notifications import (
 from app.domain.models.notifications import Notification
 
 from app.infrastructure.repositories.notification_repository import (
-    create_notification, get_notifications_by_phone
+    create_notification, get_notifications_by_phone, update_status
 )
+from app.services.sms_service import send_sms
 
 DEDUP_TTL = 300
 
@@ -23,7 +25,7 @@ router = APIRouter(prefix="/notifications", tags=["Notifications"])
 
 
 @router.post(
-    "/notifications/send",
+    "/send",
     response_model=NotificationResponseSchema,
     status_code=202,
     dependencies=[Depends(verify_internal_key)]   # internal only
@@ -42,21 +44,26 @@ async def send_notification(body: NotificationSendSchema, db=Depends(get_db)):
             )
             return result.scalar_one()
 
-    notification = await create_notification(db, {
-        "recipient_phone": body.recipient_phone,
-        "recipient_user_id": body.recipient_user_id,
-        "type": body.type,
-        "message_body": body.message_body,
-        "related_booking_id": body.related_booking_id,
-    })
+    await send_sms(body.recipient_phone, body.message_body)
 
-    await redis_client.lpush("notif:queue", str(notification.id))
+    notification = await create_notification(
+        db, 
+        {
+            "recipient_phone": body.recipient_phone,
+            "recipient_user_id": body.recipient_user_id,
+            "type": body.type,
+            "message_body": body.message_body,
+            "related_booking_id": body.related_booking_id,
+        }
+    )
+
+    await update_status(db, notification, NotificationStatus.sent)
 
     return notification
 
 
 @router.post(
-    "/notifications/bulk",
+    "/bulk",
     dependencies=[Depends(verify_internal_key)]
 )
 async def bulk_notification(body: BulkNotificationSchema, db=Depends(get_db)):
@@ -64,7 +71,7 @@ async def bulk_notification(body: BulkNotificationSchema, db=Depends(get_db)):
 
 
 @router.get(
-    "/notifications/history",
+    "/history",
     response_model=list[NotificationResponseSchema]
 )
 async def notification_history(phone: str, db=Depends(get_db)):

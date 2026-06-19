@@ -1,15 +1,41 @@
-import React, { useState } from 'react';
+import React, { useState, useContext } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { iamApi } from '../../services/api'; //[cite: 2]
+import { UserContext } from '../users/context/user-context'; //[cite: 2]
 
 const LoginOtp = () => {
   const [otp, setOtp] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
-  const userPhone = location.state?.phone || 'نامشخص';
+  const userPhone = location.state?.phone || '';
+  
+  const { fetchUser } = useContext(UserContext);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    navigate('/');
+    setIsLoading(true);
+    try {
+     
+      const response = await iamApi.post('/auth/otp/login/verify', {
+        phone_number: userPhone,
+        otp_code: otp,
+      });
+      
+     
+      localStorage.setItem('access_token', response.data.access_token);
+      
+      
+      await fetchUser();
+      
+     
+      navigate('/profile');
+    } catch (error) {
+      console.error(error);
+      alert('کد وارد شده نامعتبر است.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
