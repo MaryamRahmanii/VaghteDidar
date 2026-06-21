@@ -16,20 +16,30 @@ const LoginOtp = () => {
     e.preventDefault();
     setIsLoading(true);
     try {
-     
+      
       const response = await iamApi.post('/auth/otp/login/verify', {
         phone_number: userPhone,
         otp_code: otp,
       });
       
-     
+      
       localStorage.setItem('access_token', response.data.access_token);
       
       
       await fetchUser();
       
-     
-      navigate('/profile');
+      
+      const userRole = response.data.role;
+
+      
+      if (userRole === 'admin') {
+        navigate('/admin-dashboard');
+      } else if (userRole === 'organizer') {
+        navigate('/organizer-dashboard');
+      } else {
+        navigate('/profile'); 
+      }
+
     } catch (error) {
       console.error(error);
       alert('کد وارد شده نامعتبر است.');
@@ -37,7 +47,6 @@ const LoginOtp = () => {
       setIsLoading(false);
     }
   };
-
   return (
     <div className="w-11/12 sm:w-full max-w-sm bg-white dark:bg-[#1f2937] rounded-2xl border-2 border-blue-100 dark:border-transparent px-6 py-10 sm:px-8 sm:py-12 shadow-sm mx-auto">
       

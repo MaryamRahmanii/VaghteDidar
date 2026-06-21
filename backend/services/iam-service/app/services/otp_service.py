@@ -2,19 +2,19 @@ import random
 from app.database.redis import redis_client
 from app.core.config import settings
 import httpx
+from fastapi import HTTPException
 
 
 def _generate_otp() -> str:
     return str(random.randint(100000, 999999))
-
 
 async def request_otp(phone_number: str):
     rate_key = f"iam:rate:{phone_number}"
     count = await redis_client.get(rate_key)
 
     if count and int(count) >= settings.OTP_RATE_LIMIT:
-        # raise HTTPException(status_code=429, detail="Too many OTP requests. Try again later.")
-        raise Exception()
+        
+        raise HTTPException(status_code=429, detail="Too many OTP requests. Try again later.")
 
     otp = _generate_otp()
     
@@ -38,16 +38,13 @@ async def request_otp(phone_number: str):
             headers={"X-Internal-Key": settings.INTERNAL_SERVICE_KEY}
         )
 
-
 async def verify_otp(phone_number: str, otp_code: str) -> str:
     stored = await redis_client.get(f"iam:otp:{phone_number}")
 
     if not stored or stored != otp_code:
-        # raise HTTPException(status_code=401, detail="Invalid or expired OTP.")
-        raise Exception()
+        
+        raise HTTPException(status_code=401, detail="Invalid or expired OTP.")
     
-
-
     await redis_client.delete(f"iam:otp:{phone_number}")
 
     return phone_number

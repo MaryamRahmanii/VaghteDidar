@@ -3,7 +3,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime, timezone
 
-from app.domain.models.notifications import Notification, NotificationStatus
+from app.domain.models.notifications import Notification
+from app.domain.notification_status import NotificationStatus
 
 
 async def create_notification(db: AsyncSession, data: dict) -> Notification:

@@ -33,11 +33,17 @@ class UserSchema(BaseModel):
     full_name: str
     phone_number: str
     role: Optional[UserRole] = None
+    profile_photo_url: Optional[str] = None
     is_active: Optional[bool] = None
     created_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
+
+
+class ProfilePhotoUploadResponseSchema(BaseModel):
+    profile_photo_id: str
+    profile_photo_url: str
 
 
 class UserCreateSchema(BaseModel):

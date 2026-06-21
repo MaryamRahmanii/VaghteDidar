@@ -4,12 +4,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.redis import redis_client
 from app.core.config import settings
-from app.domain.models.bookings import SessionStatus, BookingStatus
+from app.domain.session_status import SessionStatus
+from app.domain.booking_status import BookingStatus
 from app.infrastructure.repositories import booking_repository, slot_repository
 from app.services.notification_client import notify
 
 SLOT_LOCK_TTL = 10
-ACTIVE_COUNT_TTL = 0
+ACTIVE_COUNT_TTL = 86400
 
 
 def _active_count_key(user_id: str) -> str:
@@ -17,6 +18,21 @@ def _active_count_key(user_id: str) -> str:
 
 def _slot_lock_key(slot_id: str) -> str:
     return f"booking:lock:slot:{slot_id}"
+
+
+async def _get_active_count(db: AsyncSession, user_id: str) -> int:
+    """
+    Return active booking count, seeding Redis from DB on cache miss.
+    Prevents the limit from being bypassed after a service restart.
+    """
+    active_key = _active_count_key(user_id)
+    count = await redis_client.get(active_key)
+    if count is not None:
+        return int(count)
+
+    db_count = await booking_repository.get_active_booking_count(db, user_id)
+    await redis_client.set(active_key, db_count, ex=ACTIVE_COUNT_TTL)
+    return db_count
 
 
 async def create_booking(
@@ -28,8 +44,8 @@ async def create_booking(
     user_id = user["user_id"]
     active_key = _active_count_key(user_id)
 
-    count = await redis_client.get(active_key)
-    if count and int(count) >= settings.MAX_ACTIVE_BOOKINGS:
+    count = await _get_active_count(db, user_id)
+    if count >= settings.MAX_ACTIVE_BOOKINGS:
         raise HTTPException(
             status_code=429,
             detail=f"You already have {settings.MAX_ACTIVE_BOOKINGS} active bookings. "
@@ -55,6 +71,7 @@ async def create_booking(
         await slot_repository.update_slot_status(db, slot, SessionStatus.booked)
 
         await redis_client.incr(active_key)
+        await redis_client.expire(active_key, ACTIVE_COUNT_TTL)
 
         await notify(
             recipient_phone=user.get("phone_number", ""),
@@ -74,7 +91,8 @@ async def cancel_booking(
     db: AsyncSession,
     booking_id: UUID,
     cancelled_by: str,
-    user: dict
+    user: dict,
+    reason: str | None = None
 ):
     booking = await booking_repository.get_booking(db, booking_id)
 
@@ -87,7 +105,7 @@ async def cancel_booking(
     if cancelled_by == "registrant" and str(booking.registrant_id) != user["user_id"]:
         raise HTTPException(status_code=403, detail="You can only cancel your own bookings.")
 
-    booking = await booking_repository.cancel_booking(db, booking, cancelled_by)
+    booking = await booking_repository.cancel_booking(db, booking, cancelled_by, reason)
     slot = await slot_repository.get_slot(db, booking.time_slot_id)
     await slot_repository.update_slot_status(db, slot, SessionStatus.available)
 

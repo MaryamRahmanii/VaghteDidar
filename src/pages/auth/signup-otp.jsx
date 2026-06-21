@@ -11,7 +11,6 @@ const SignupOtp = () => {
   const location = useLocation();
   const { fetchUser } = useContext(UserContext);
 
-  
   const userPhone = location.state?.phone || '';
   const userFullName = location.state?.fullName || 'کاربر جدید';
 
@@ -20,21 +19,28 @@ const SignupOtp = () => {
     setIsLoading(true);
     
     try {
-    
       const response = await iamApi.post('/auth/otp/signup/verify', {
         phone_number: userPhone,
         otp_code: otp,
         full_name: userFullName 
       });
       
-     
       localStorage.setItem('access_token', response.data.access_token);
-      
       
       await fetchUser();
       
       
-      navigate('/profile');
+      const userRole = response.data.role;
+
+      
+      if (userRole === 'admin') {
+        navigate('/admin-dashboard');
+      } else if (userRole === 'organizer') {
+        navigate('/organizer-dashboard');
+      } else {
+        navigate('/profile');
+      }
+      
     } catch (error) {
       console.error(error);
       alert('کد وارد شده نامعتبر است.');

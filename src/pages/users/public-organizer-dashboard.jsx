@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-
+import { bookingApi } from '../../services/api';
 
 const PublicOrganizerDashboard = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
- 
   const orgId = location.state?.orgId || '';
 
   const monthsData = [
@@ -26,6 +25,10 @@ const PublicOrganizerDashboard = () => {
   const [showSuccessAlert, setShowSuccessAlert] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
+  
+  const [organizerProfile, setOrganizerProfile] = useState(null);
+  const [serverSlots, setServerSlots] = useState([]);
+
   const handlePrevMonth = () => {
     if (currentMonthIdx > 0) setCurrentMonthIdx(currentMonthIdx - 1);
   };
@@ -36,25 +39,26 @@ const PublicOrganizerDashboard = () => {
 
   
   useEffect(() => {
-   
+    const fetchDashboardData = async () => {
+      if (!orgId) return;
+      try {
+        setIsLoading(true);
+        const profileRes = await bookingApi.get(`/organizers/${orgId}`);
+        setOrganizerProfile(profileRes.data);
 
-    const allTimes = [
-      { id: '11111111-1111-1111-1111-111111111111', time: '۰۹:۰۰' },
-      { id: '22222222-2222-2222-2222-222222222222', time: '۱۰:۰۰' },
-      { id: '33333333-3333-3333-3333-333333333333', time: '۱۱:۰۰' },
-      { id: '44444444-4444-4444-4444-444444444444', time: '۱۵:۰۰' },
-      { id: '55555555-5555-5555-5555-555555555555', time: '۱۸:۰۰' },
-      { id: '66666666-6666-6666-6666-666666666666', time: '۱۹:۰۰' }
-    ];
-    const generatedSlots = allTimes.map((slot, index) => {
-      const isFull = (selectedDate.day * 3 + index) % 5 === 0;
-      return { ...slot, isAvailable: !isFull };
-    });
-    setAvailableSlots(generatedSlots);
-    setSelectedTime(null);
-  }, [selectedDate]);
+        const slotsRes = await bookingApi.get(`/slots/available?organizer_id=${orgId}`);
+        setServerSlots(slotsRes.data);
+        setAvailableSlots(slotsRes.data); 
+      } catch (error) {
+        console.error("خطا در دریافت اطلاعات تقویم:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
- 
+    fetchDashboardData();
+  }, [orgId]);
+
   const handleBookingSubmit = async (e) => {
     e.preventDefault();
     if (!selectedTime) return;
@@ -62,27 +66,20 @@ const PublicOrganizerDashboard = () => {
     setIsLoading(true);
 
     try {
-      
-    
+     
+      await bookingApi.post('/bookings', {
+        time_slot_id: selectedTime.id,
+        custom_field_data: {
+          duration: duration,
+          type: "مشاوره آنلاین"
+        }
+      });
 
       setShowSuccessAlert(true);
 
       setTimeout(() => {
-        navigate('/profile', { 
-          state: { 
-            newBooking: {
-              id: Date.now(),
-              name: 'مهندس فلان فلانی', 
-              spec: 'مشاور کسب و کار',
-              title: 'مشاوره اختصاصی',
-              date: `${selectedDate.day} ${monthsData[currentMonthIdx].name.split(' ')[0]}`,
-              time: `ساعت ${selectedTime.time}`,
-              status: 'آینده',
-              color: 'bg-indigo-100',
-              seed: 'Felix'
-            }
-          } 
-        });
+       
+        navigate('/profile');
       }, 2000);
 
     } catch (error) {
@@ -100,7 +97,6 @@ const PublicOrganizerDashboard = () => {
   return (
     <div className="container mx-auto px-4 sm:px-6 py-8 animate-fade-in relative" dir="rtl">
       
-      
       {showSuccessAlert && (
         <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[200] flex items-center gap-3 bg-green-50 dark:bg-green-900/90 border border-green-200 dark:border-green-700 text-green-700 dark:text-green-300 px-6 py-4 rounded-2xl shadow-xl animate-fade-in">
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-6 h-6">
@@ -112,18 +108,19 @@ const PublicOrganizerDashboard = () => {
 
       <div className="w-full max-w-2xl mx-auto space-y-6">
         
-        {/* ================= کارت ۱: پروفایل برگزارکننده ================= */}
+       
         <div className="bg-white dark:bg-[#1a2235] border border-blue-100 dark:border-gray-700/60 rounded-3xl p-6 sm:p-8 shadow-sm">
           <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 text-center sm:text-right">
-            <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full overflow-hidden bg-pink-500 border-4 border-white dark:border-[#1a2235] shadow-md flex-shrink-0 relative">
-              <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Jessica&backgroundColor=transparent" alt="آواتار" className="w-full h-full object-cover scale-110 mt-2" />
+            <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full overflow-hidden border-4 border-white dark:border-[#1a2235] shadow-md flex-shrink-0 relative">
+              <img src={organizerProfile?.avatar_url || "https://api.dicebear.com/7.x/avataaars/svg?seed=Jessica&backgroundColor=transparent"} alt="آواتار" className="w-full h-full object-cover scale-110 mt-2" />
             </div>
             <div className="space-y-3 pt-2">
-              <h1 className="text-xl sm:text-2xl font-bold text-gray-800 dark:text-white">مهندس فلان فلانی</h1>
-              <h2 className="text-sm font-bold text-blue-600 dark:text-blue-400">مشاور کسب و کار و رشد استارتاپ ها</h2>
-              <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 leading-relaxed text-justify sm:text-right">
-                بیش از ۱۰ سال سابقه در زمینه مشاوره و راهبری کسب و کارهای نوین و استارتاپ های فناورانه، ارائه راهکارهای عملی برای حل مشکلات و توسعه بیزینس مدل.
-              </p>
+              <h1 className="text-xl sm:text-2xl font-bold text-gray-800 dark:text-white">
+                {organizerProfile?.name || 'در حال بارگذاری...'}
+              </h1>
+              <h2 className="text-sm font-bold text-blue-600 dark:text-blue-400">
+                {organizerProfile?.specialty || ''}
+              </h2>
             </div>
           </div>
 
@@ -151,7 +148,7 @@ const PublicOrganizerDashboard = () => {
           </div>
         </div>
 
-        {/* ================= کارت ۲: تقویم پویا ================= */}
+        
         <div className="bg-white dark:bg-[#1a2235] border border-blue-100 dark:border-gray-700/60 rounded-3xl p-6 sm:p-8 shadow-sm">
           <div className="flex justify-between items-center mb-6">
             <button 
@@ -209,7 +206,7 @@ const PublicOrganizerDashboard = () => {
             ساعات موجود در {selectedDate.day} {monthsData[selectedDate.month].name.split(' ')[0]}
           </h3>
           <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3 sm:gap-4">
-            {availableSlots.map((slot, index) => {
+            {availableSlots.length > 0 ? availableSlots.map((slot, index) => {
               const isSelected = selectedTime?.id === slot.id;
               const availableClasses = "border-gray-200 dark:border-gray-600 text-gray-900 dark:text-gray-100 hover:border-blue-400 dark:hover:border-gray-400 bg-white dark:bg-[#1f2937] cursor-pointer";
               const fullClasses = "border-gray-100 dark:border-gray-800 text-gray-300 dark:text-gray-600 bg-gray-50 dark:bg-[#111827] cursor-not-allowed opacity-60";
@@ -218,11 +215,11 @@ const PublicOrganizerDashboard = () => {
               return (
                 <button
                   type="button"
-                  key={index}
-                  disabled={!slot.isAvailable}
+                  key={slot.id || index}
+                  disabled={!slot.is_available}
                   onClick={() => setSelectedTime(slot)}
                   className={`py-2.5 rounded-xl text-sm font-bold transition-all border-2 ${
-                    slot.isAvailable 
+                    slot.is_available 
                       ? (isSelected ? activeClasses : availableClasses) 
                       : fullClasses
                   }`}
@@ -230,11 +227,13 @@ const PublicOrganizerDashboard = () => {
                   {slot.time}
                 </button>
               )
-            })}
+            }) : (
+              <p className="col-span-full text-center text-gray-500 text-sm">هیچ ساعتی برای این روز ثبت نشده است.</p>
+            )}
           </div>
         </div>
 
-        
+      
         <div className="bg-white dark:bg-[#1a2235] border border-blue-100 dark:border-gray-700/60 rounded-3xl p-6 sm:p-8 shadow-sm">
           <div className="flex items-center justify-center sm:justify-start gap-2 border-b border-gray-100 dark:border-gray-700/60 pb-4 mb-6">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5 text-blue-500">
@@ -250,11 +249,6 @@ const PublicOrganizerDashboard = () => {
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-2">ایمیل</label>
-              <input type="email" dir="ltr" className="w-full bg-gray-50 dark:bg-[#111827] border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 text-sm text-gray-800 dark:text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors" />
-            </div>
-
-            <div>
               <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-2">شماره تلفن همراه</label>
               <input type="tel" dir="ltr" required className="w-full bg-gray-50 dark:bg-[#111827] border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 text-sm text-gray-800 dark:text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors" />
             </div>
@@ -263,7 +257,6 @@ const PublicOrganizerDashboard = () => {
               <div>
                 <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-2">نوع مشاوره</label>
                 <select className="w-full bg-gray-50 dark:bg-[#111827] border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 text-sm text-gray-800 dark:text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors appearance-none">
-                  <option>انتخاب کنید</option>
                   <option>مشاوره آنلاین (تصویری)</option>
                   <option>مشاوره تلفنی</option>
                   <option>مشاوره حضوری</option>
@@ -277,21 +270,14 @@ const PublicOrganizerDashboard = () => {
                   list="durations"
                   value={duration}
                   onChange={(e) => setDuration(e.target.value)}
-                  placeholder="انتخاب یا تایپ کنید..."
                   className="w-full bg-gray-50 dark:bg-[#111827] border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 text-sm text-gray-800 dark:text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors" 
                 />
                 <datalist id="durations">
                   <option value="۳۰ دقیقه" />
                   <option value="۱ ساعت" />
-                  <option value="۱ ساعت و ۳۰ دقیقه" />
                   <option value="۲ ساعت" />
                 </datalist>
               </div>
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-2">توضیحات و سوالات (اختیاری)</label>
-              <textarea rows="4" className="w-full bg-gray-50 dark:bg-[#111827] border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 text-sm text-gray-800 dark:text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors resize-none"></textarea>
             </div>
 
             <div className="flex justify-center pt-6">

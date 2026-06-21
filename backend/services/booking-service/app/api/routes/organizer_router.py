@@ -5,8 +5,11 @@ from app.database.database import get_db
 from app.api.dependencies.api_dependency import get_current_user
 
 from app.domain.schemas.bookings import BookingResponseSchema
+from app.domain.schemas.organizers import (
+    OrganizerProfileUpsertSchema, OrganizerProfileResponseSchema
+)
 from app.domain.schemas.events import (
-    CustomFieldSchema, EventResponseSchema, 
+    CustomFieldSchema, EventResponseSchema,
     EventWithFieldsCreateSchema, EventCreateSchema
 )
 from app.domain.schemas.slots import (
@@ -20,17 +23,62 @@ from app.infrastructure.repositories.slot_repository import (
     bulk_create_slots, get_slot, update_slot_status
 )
 from app.infrastructure.repositories.booking_repository import get_event_bookings
+from app.infrastructure.repositories.organizer_repository import (
+    get_organizer_profile, upsert_organizer_profile
+)
 
 from app.services.booking_service import cancel_booking
 
 
+# Prefixed router for organizer management actions
 router = APIRouter(prefix="/organizer", tags=["organizer"])
+
+# Separate router for the public GET /organizers/{id} endpoint —
+# must be registered in main.py alongside router so the URL has no extra prefix
+public_router = APIRouter(tags=["organizer"])
 
 
 def _require_organizer(user: dict):
     if user.get("role") not in ("organizer", "admin"):
         raise HTTPException(status_code=403, detail="Organizer access required.")
 
+
+# ── Organizer profile ──────────────────────────────────────────────────────────
+
+@public_router.get("/organizers/{organizer_id}", response_model=OrganizerProfileResponseSchema)
+async def get_organizer(organizer_id: UUID, db=Depends(get_db)):
+    """
+    Public, no auth required.
+    GET /organizers/{organizer_id}  ← exactly what the frontend expects
+    Returns name, specialty, avatar_url for the calendar header.
+    """
+    profile = await get_organizer_profile(db, organizer_id)
+    if not profile:
+        raise HTTPException(status_code=404, detail="Organizer profile not found.")
+    return profile
+
+
+@router.put("/profile", response_model=OrganizerProfileResponseSchema)
+async def set_organizer_profile(
+    body: OrganizerProfileUpsertSchema,
+    db=Depends(get_db),
+    user=Depends(get_current_user)
+):
+    """
+    Organizers call this to create or update their own profile card.
+    PUT /organizer/profile
+    """
+    _require_organizer(user)
+    return await upsert_organizer_profile(
+        db,
+        organizer_id=UUID(user["user_id"]),
+        name=body.name,
+        specialty=body.specialty,
+        avatar_url=body.avatar_url,
+    )
+
+
+# ── Events ─────────────────────────────────────────────────────────────────────
 
 @router.post("/events", response_model=EventResponseSchema, status_code=201)
 async def create_new_event(
@@ -93,6 +141,8 @@ async def set_custom_fields(
     return event
 
 
+# ── Slots ──────────────────────────────────────────────────────────────────────
+
 @router.post("/slots", response_model=list[TimeSlotResponseSchema], status_code=201)
 async def create_slots(
     body: TimeSlotBulkCreateSchema,
@@ -120,6 +170,8 @@ async def delete_slot(
     await update_slot_status(db, slot, SessionStatus.cancelled)
     return {"message": "Slot removed."}
 
+
+# ── Bookings ───────────────────────────────────────────────────────────────────
 
 @router.get("/events/{event_id}/bookings", response_model=list[BookingResponseSchema])
 async def event_bookings(

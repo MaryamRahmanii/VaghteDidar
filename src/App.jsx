@@ -12,6 +12,11 @@ import Profile from './pages/users/profile';
 import PublicOrganizerDashboard from './pages/users/public-organizer-dashboard';
 import EditProfile from './pages/users/edit-profile';
 import { UserProvider } from './pages/users/context/user-context';
+//import AdminDashboard from './pages/admin/admin-dashboard'; 
+//import OrganizerDashboard from './pages/organizer/organizer-dashboard';
+
+const FakeAdmin = () => <div className="p-10 text-center font-bold text-2xl">سلام ادمین جان! خوش اومدی به پنل خودت.</div>;
+const FakeOrganizer = () => <div className="p-10 text-center font-bold text-2xl">سلام برگزارکننده! اینجا داشبورد شماست.</div>;
 
 function App() {
   
@@ -29,6 +34,8 @@ function App() {
              <Route path="/profile" element={<Profile />} />
              <Route path="/public-organizer-dashboard" element={<PublicOrganizerDashboard />} />
              <Route path="/edit-profile" element={<EditProfile />} />
+             <Route path="/admin-dashboard" element={<FakeAdmin />} />
+             <Route path="/organizer-dashboard" element={<FakeOrganizer />} />
           </Route>
           
          

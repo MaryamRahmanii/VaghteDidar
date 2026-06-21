@@ -3,7 +3,8 @@ from datetime import datetime, timedelta
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.domain.models.bookings import TimeSlot, SessionStatus
+from app.domain.models.bookings import TimeSlot, Event
+from app.domain.session_status import SessionStatus
 
 
 async def bulk_create_slots(
@@ -19,12 +20,10 @@ async def bulk_create_slots(
         from_time = window["from_time"]
         to_time = window["to_time"]
 
-        # Parse start and end of the window
         start = datetime.fromisoformat(f"{date}T{from_time}:00")
         end = datetime.fromisoformat(f"{date}T{to_time}:00")
         delta = timedelta(minutes=duration_minutes)
 
-        # Explode window into individual slots
         current = start
         while current + delta <= end:
             slot = TimeSlot(
@@ -59,6 +58,34 @@ async def get_available_slots(db: AsyncSession, event_id: UUID) -> list[TimeSlot
         .order_by(TimeSlot.start_time)
     )
     return result.scalars().all()
+
+
+async def get_slots_by_organizer(
+    db: AsyncSession, organizer_id: UUID
+) -> list[dict]:
+    """
+    Returns all slots across every event owned by organizer_id,
+    with is_available reflecting whether the slot is still open.
+    Used by GET /slots/available?organizer_id=...
+    """
+    result = await db.execute(
+        select(TimeSlot)
+        .join(Event, TimeSlot.event_id == Event.id)
+        .where(Event.organizer_id == organizer_id)
+        .where(Event.is_active == True)
+        .where(TimeSlot.status != SessionStatus.cancelled)
+        .order_by(TimeSlot.start_time)
+    )
+    slots = result.scalars().all()
+
+    return [
+        {
+            "id": slot.id,
+            "time": slot.start_time.strftime("%Y-%m-%d %H:%M"),
+            "is_available": slot.status == SessionStatus.available,
+        }
+        for slot in slots
+    ]
 
 
 async def update_slot_status(

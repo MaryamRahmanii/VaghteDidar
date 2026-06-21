@@ -9,7 +9,7 @@ from app.domain.models.notifications import NotificationStatus
 from app.api.dependencies.api_dependency import verify_internal_key
 
 from app.domain.schemas.notifications import (
-    NotificationResponseSchema, NotificationSendSchema, 
+    NotificationResponseSchema, NotificationSendSchema,
     BulkNotificationSchema
 )
 from app.domain.models.notifications import Notification
@@ -18,6 +18,7 @@ from app.infrastructure.repositories.notification_repository import (
     create_notification, get_notifications_by_phone, update_status
 )
 from app.services.sms_service import send_sms
+from app.core.exceptions import SMSDeliveryError
 
 DEDUP_TTL = 300
 
@@ -28,14 +29,13 @@ router = APIRouter(prefix="/notifications", tags=["Notifications"])
     "/send",
     response_model=NotificationResponseSchema,
     status_code=202,
-    dependencies=[Depends(verify_internal_key)]   # internal only
+    dependencies=[Depends(verify_internal_key)]
 )
 async def send_notification(body: NotificationSendSchema, db=Depends(get_db)):
     if body.related_booking_id:
         dedup_key = f"notif:dedup:{body.related_booking_id}:{body.type.value}"
         is_duplicate = await redis_client.set(dedup_key, 1, nx=True, ex=DEDUP_TTL)
         if not is_duplicate:
-            # Already queued recently — skip silently
             result = await db.execute(
                 select(Notification)
                 .where(Notification.related_booking_id == body.related_booking_id)
@@ -44,10 +44,8 @@ async def send_notification(body: NotificationSendSchema, db=Depends(get_db)):
             )
             return result.scalar_one()
 
-    await send_sms(body.recipient_phone, body.message_body)
-
     notification = await create_notification(
-        db, 
+        db,
         {
             "recipient_phone": body.recipient_phone,
             "recipient_user_id": body.recipient_user_id,
@@ -57,7 +55,11 @@ async def send_notification(body: NotificationSendSchema, db=Depends(get_db)):
         }
     )
 
-    await update_status(db, notification, NotificationStatus.sent)
+    try:
+        await send_sms(body.recipient_phone, body.message_body)
+        await update_status(db, notification, NotificationStatus.sent)
+    except SMSDeliveryError as e:
+        await update_status(db, notification, NotificationStatus.failed, error=str(e))
 
     return notification
 
@@ -72,7 +74,8 @@ async def bulk_notification(body: BulkNotificationSchema, db=Depends(get_db)):
 
 @router.get(
     "/history",
-    response_model=list[NotificationResponseSchema]
+    response_model=list[NotificationResponseSchema],
+    dependencies=[Depends(verify_internal_key)]
 )
 async def notification_history(phone: str, db=Depends(get_db)):
     return await get_notifications_by_phone(db, phone)
