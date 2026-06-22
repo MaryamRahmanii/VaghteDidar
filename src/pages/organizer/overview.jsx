@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useTheme } from '../../contexts/ThemeContext';
+import { UserContext } from '../users/context/user-context';
 import { 
   FiCalendar, FiClock, FiUsers, FiTrendingUp, FiTrash2,
   FiCheckCircle, FiXCircle, FiClock as FiPending, FiBarChart2,
@@ -9,9 +10,11 @@ import {
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts';
+import CopyLinkButton from './components/CopyLinkButton';
 
 const Overview = () => {
   const { darkMode } = useTheme();
+  const { userData } = useContext(UserContext);
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
 
@@ -91,18 +94,23 @@ const Overview = () => {
 
   return (
     <div className="p-4 sm:p-6 max-w-7xl mx-auto min-h-screen bg-gray-50 dark:bg-[#111827]">
-      {/* هدر */}
+      {/* هدر با دکمه کپی لینک */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-800 dark:text-white">نمای کلی</h1>
           <p className="text-sm text-gray-600 dark:text-gray-400">خوش آمدید</p>
         </div>
-        <Link 
-          to="/organizer/events/create" 
-          className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold transition shadow-lg shadow-blue-500/30"
-        >
-          <FiPlusCircle size={18} /> ایجاد رویداد جدید
-        </Link>
+        <div className="flex items-center gap-3 flex-wrap">
+          {/* دکمه کپی لینک (جدید) */}
+          <CopyLinkButton />
+          
+          <Link 
+            to="/organizer/events/create" 
+            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold transition shadow-lg shadow-blue-500/30"
+          >
+            <FiPlusCircle size={18} /> ایجاد رویداد جدید
+          </Link>
+        </div>
       </div>
 
       {/* ۴ کارت آمار */}
