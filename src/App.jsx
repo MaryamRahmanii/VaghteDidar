@@ -5,6 +5,14 @@ import MainLayout from './layouts/MainLayout';
 import OrganizerLayout from './layouts/OrganizerLayout';
 import { UserProvider } from './pages/users/context/user-context';
 
+import AdminLayout from './layouts/AdminLayout';
+
+// صفحات ادمین
+import Statistics from './pages/admin/statistics';
+import UsersList from './pages/admin/users-list';
+import OrganizersList from './pages/admin/organizers-list';
+import EventMonitoring from './pages/admin/event-monitoring';
+
 import Landing from './pages/landing';
 import Login from './pages/auth/login';
 import LoginOtp from './pages/auth/login-otp';
@@ -61,6 +69,14 @@ function App() {
               <Route path="/organizer/notification" element={<Notifications />} />
               <Route path="/organizer/setting" element={<Settings />} />
             </Route>
+
+            {/* صفحات ادمین (مدیر ارشد) */}
+          <Route element={<AdminLayout />}>
+            <Route path="/admin/statistics" element={<Statistics />} />
+            <Route path="/admin/users" element={<UsersList />} />
+            <Route path="/admin/organizers" element={<OrganizersList />} />
+            <Route path="/admin/events" element={<EventMonitoring />} />
+          </Route>
 
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
