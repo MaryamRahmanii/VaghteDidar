@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, status
 from fastapi.responses import StreamingResponse
 import io
+from pydantic import BaseModel
 
 from app.database.database import get_db
 from app.api.dependencies.auth_dependency import get_current_user
@@ -12,6 +13,12 @@ router = APIRouter(prefix="/profile", tags=["Auth"])
 
 ALLOWED_CONTENT_TYPES = {"image/jpeg", "image/png", "image/webp"}
 MAX_FILE_SIZE = 5 * 1024 * 1024
+
+
+
+class ProfileInfoUpdateSchema(BaseModel):
+    full_name: str
+    phone_number: str
 
 
 @router.post("/photo", response_model=ProfilePhotoUploadResponseSchema)
@@ -27,7 +34,7 @@ async def upload_profile_photo(
             status_code=status.HTTP_413_CONTENT_TOO_LARGE
         )
 
-    db_user = await user_repository.get_user_by_id(db, user["user_id"])
+    db_user = await user_repository.get_user_by_id(db, user.user_id)
     if not db_user:
         raise HTTPException(
             detail="User not found.",
@@ -64,7 +71,7 @@ async def delete_photo(
     db=Depends(get_db),
     user=Depends(get_current_user)
 ):
-    db_user = await user_repository.get_user_by_id(db, user["user_id"])
+    db_user = await user_repository.get_user_by_id(db, user.user_id)
     if not db_user or not db_user.profile_photo_id:
         raise HTTPException(
             detail="No profile photo set.",
@@ -75,3 +82,35 @@ async def delete_photo(
     await user_repository.update_user(db, db_user, profile_photo_id=None)
 
     return {"message": "Profile photo deleted."}
+
+
+@router.put("/info")
+async def update_profile_info(
+    body: ProfileInfoUpdateSchema,
+    db=Depends(get_db),
+    user=Depends(get_current_user)
+):
+    db_user = await user_repository.get_user_by_id(db, user.user_id)
+    if not db_user:
+        raise HTTPException(
+            detail="User not found.",
+            status_code=status.HTTP_404_NOT_FOUND
+        )
+    
+   
+    if body.phone_number != db_user.phone_number:
+        existing_user = await user_repository.get_user(db, body.phone_number)
+        if existing_user:
+            raise HTTPException(
+                detail="این شماره موبایل قبلاً توسط شخص دیگری ثبت شده است.",
+                status_code=status.HTTP_400_BAD_REQUEST
+            )
+    
+   
+    await user_repository.update_user(
+        db, 
+        db_user, 
+        full_name=body.full_name, 
+        phone_number=body.phone_number
+    )
+    return {"message": "Profile info updated successfully."}
