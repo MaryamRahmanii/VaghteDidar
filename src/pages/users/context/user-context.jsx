@@ -25,7 +25,7 @@ export const UserProvider = ({ children }) => {
         }
       });
       
-      // ===== فقط این خط تغییر کرده =====
+      
       setUserData({
         ...response.data,
         public_slug: response.data.public_slug || '',

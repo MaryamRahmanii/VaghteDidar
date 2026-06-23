@@ -58,7 +58,7 @@ const Profile = () => {
         desc: item.message_body,
         time: new Date(item.created_at).toLocaleString('fa-IR'),
         type: item.status === 'sent' ? 'success' : 'message',
-        unread: index === 0 // فقط اعلان اول به صورت خوانده‌نشده نمایش داده می‌شود
+        unread: index === 0 
       }));
       
       setDisplayedNotifs(formattedNotifs);
@@ -77,13 +77,14 @@ const Profile = () => {
     }
   };
 
-  const handleSearchOrganizer = (e) => {
+ const handleSearchOrganizer = (e) => {
     e.preventDefault();
     if (!organizerId.trim()) return;
+    
     setShowNewReserveModal(false);
-    navigate('/public-organizer-dashboard', { 
-      state: { orgId: organizerId } 
-    });
+    
+    
+    navigate(`/organizer/${organizerId}`);
   };
 
   useEffect(() => {

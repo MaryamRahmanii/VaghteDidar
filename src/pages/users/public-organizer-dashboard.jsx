@@ -1,23 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-
-
-const PublicOrganizerDashboard = () => {
-  const navigate = useNavigate();
-  const { slug } = useParams(); // <-- دریافت از URL
-import { useNavigate, useLocation } from 'react-router-dom';
 import { bookingApi } from '../../services/api';
 
 const PublicOrganizerDashboard = () => {
   const navigate = useNavigate();
-  const location = useLocation();
+  const { slug } = useParams(); 
 
-  const orgId = location.state?.orgId || '';
+  const orgId = slug || ''; 
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   
-  const orgId = slug || ''; // <-- استفاده از slug به جای location.state
   const monthsData = [
     { name: 'خرداد ۱۴۰۳', days: 31, startOffset: 3 },
     { name: 'تیر ۱۴۰۳', days: 31, startOffset: 6 },
@@ -33,9 +26,6 @@ const PublicOrganizerDashboard = () => {
   const [duration, setDuration] = useState('۱ ساعت');
   
   const [showSuccessAlert, setShowSuccessAlert] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-
-  
   const [organizerProfile, setOrganizerProfile] = useState(null);
   const [serverSlots, setServerSlots] = useState([]);
 
@@ -47,75 +37,6 @@ const PublicOrganizerDashboard = () => {
     if (currentMonthIdx < monthsData.length - 1) setCurrentMonthIdx(currentMonthIdx + 1);
   };
 
-  
-  const fetchAvailableSlots = async (orgId, date) => {
-  // TODO: وقتی API آماده شد، این بخش را با درخواست واقعی جایگزین کنید
-  // داده‌های Mock برای تست
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      const allTimes = [
-        { id: '1', time: '۰۹:۰۰' },
-        { id: '2', time: '۱۰:۰۰' },
-        { id: '3', time: '۱۱:۰۰' },
-        { id: '4', time: '۱۵:۰۰' },
-        { id: '5', time: '۱۸:۰۰' },
-        { id: '6', time: '۱۹:۰۰' }
-      ];
-      const slots = allTimes.map((slot, index) => ({
-        ...slot,
-        isAvailable: (selectedDate.day * 3 + index) % 5 !== 0
-      }));
-      resolve(slots);
-    }, 500);
-  });
-};
-
-
-
-  
-//   useEffect(() => {
-//   const fetchAvailableSlots = async () => {
-//     if (!orgId || !selectedDate) return; // اگر شناسه یا تاریخ انتخاب نشده، خروج
-
-//     try {
-//       setIsLoading(true);
-      
-//       // تبدیل تاریخ به فرمت مناسب برای بک‌اند
-//       const year = 1402; // یا از تقویم شمسی دریافت کنید
-//       const month = selectedDate.month + 1;
-//       const day = selectedDate.day;
-//       const formattedDate = `${year}/${month.toString().padStart(2, '0')}/${day.toString().padStart(2, '0')}`;
-      
-//       // فراخوانی API
-//       const response = await iamApi.get(`/organizer/${orgId}/slots`, {
-//         params: { date: formattedDate }
-//       });
-      
-//       // تبدیل داده‌های دریافتی به فرمت مورد نظر
-//       const slots = response.data.map(slot => ({
-//         id: slot.id,
-//         time: slot.start_time, // یا هر فیلدی که زمان را نشان می‌دهد
-//         isAvailable: slot.is_available
-//       }));
-      
-//       setAvailableSlots(slots);
-//     } catch (error) {
-//       console.error('خطا در دریافت ساعات موجود:', error);
-//       setAvailableSlots([]);
-//       // می‌توانید یک پیام خطا به کاربر نشان دهید
-//     } finally {
-//       setIsLoading(false);
-//     }
-//   };
-
-//   fetchAvailableSlots();
-// }, [orgId, selectedDate]); // وابستگی‌ها: orgId و selectedDate
-
-
-
-  
-
- 
   useEffect(() => {
     const fetchDashboardData = async () => {
       if (!orgId) return;
@@ -144,7 +65,6 @@ const PublicOrganizerDashboard = () => {
     setIsLoading(true);
 
     try {
-     
       await bookingApi.post('/bookings', {
         time_slot_id: selectedTime.id,
         custom_field_data: {
@@ -156,7 +76,6 @@ const PublicOrganizerDashboard = () => {
       setShowSuccessAlert(true);
 
       setTimeout(() => {
-       
         navigate('/profile');
       }, 2000);
 
@@ -186,7 +105,6 @@ const PublicOrganizerDashboard = () => {
 
       <div className="w-full max-w-2xl mx-auto space-y-6">
         
-       
         <div className="bg-white dark:bg-[#1a2235] border border-blue-100 dark:border-gray-700/60 rounded-3xl p-6 sm:p-8 shadow-sm">
           <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 text-center sm:text-right">
             <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full overflow-hidden border-4 border-white dark:border-[#1a2235] shadow-md flex-shrink-0 relative">
@@ -226,7 +144,6 @@ const PublicOrganizerDashboard = () => {
           </div>
         </div>
 
-        
         <div className="bg-white dark:bg-[#1a2235] border border-blue-100 dark:border-gray-700/60 rounded-3xl p-6 sm:p-8 shadow-sm">
           <div className="flex justify-between items-center mb-6">
             <button 
@@ -278,7 +195,6 @@ const PublicOrganizerDashboard = () => {
           </div>
         </div>
 
-       
         <div className="bg-white dark:bg-[#1a2235] border border-blue-100 dark:border-gray-700/60 rounded-3xl p-6 sm:p-8 shadow-sm transition-all">
           <h3 className="font-bold text-sm text-gray-800 dark:text-white mb-6 text-center sm:text-right">
             ساعات موجود در {selectedDate.day} {monthsData[selectedDate.month].name.split(' ')[0]}
@@ -311,7 +227,6 @@ const PublicOrganizerDashboard = () => {
           </div>
         </div>
 
-      
         <div className="bg-white dark:bg-[#1a2235] border border-blue-100 dark:border-gray-700/60 rounded-3xl p-6 sm:p-8 shadow-sm">
           <div className="flex items-center justify-center sm:justify-start gap-2 border-b border-gray-100 dark:border-gray-700/60 pb-4 mb-6">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5 text-blue-500">
