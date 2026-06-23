@@ -32,6 +32,12 @@ import Notifications from './pages/organizer/notification';
 import Settings from './pages/organizer/setting';
 
 
+import { UserProvider } from './pages/users/context/user-context';
+//import AdminDashboard from './pages/admin/admin-dashboard'; 
+//import OrganizerDashboard from './pages/organizer/organizer-dashboard';
+
+const FakeAdmin = () => <div className="p-10 text-center font-bold text-2xl">سلام ادمین جان! خوش اومدی به پنل خودت.</div>;
+const FakeOrganizer = () => <div className="p-10 text-center font-bold text-2xl">سلام برگزارکننده! اینجا داشبورد شماست.</div>;
 
 function App() {
   const isAuthenticated = !!localStorage.getItem('access_token');
@@ -58,6 +64,28 @@ function App() {
               <Route path="/signup" element={isAuthenticated ? <Navigate to="/" /> : <Signup />} />
               <Route path="/signup-otp" element={isAuthenticated ? <Navigate to="/" /> : <SignupOtp />} />
             </Route>
+    <UserProvider>
+      <BrowserRouter>
+        <Routes>
+          
+       
+          <Route element={<MainLayout />}>
+             <Route path="/" element={<Landing />} />
+             <Route path="/profile" element={<Profile />} />
+             <Route path="/public-organizer-dashboard" element={<PublicOrganizerDashboard />} />
+             <Route path="/edit-profile" element={<EditProfile />} />
+             <Route path="/admin-dashboard" element={<FakeAdmin />} />
+             <Route path="/organizer-dashboard" element={<FakeOrganizer />} />
+          </Route>
+          
+         
+          <Route element={<AuthLayout />}>
+            <Route path="/login" element={isAuthenticated ? <Navigate to="/" replace /> : <Login />} />
+            <Route path="/login-otp" element={isAuthenticated ? <Navigate to="/" replace /> : <LoginOtp />} />
+            
+            <Route path="/signup" element={isAuthenticated ? <Navigate to="/" replace /> : <Signup />} />
+            <Route path="/signup-otp" element={isAuthenticated ? <Navigate to="/" replace /> : <SignupOtp />} />
+          </Route>
 
             {/* ===== صفحات برگزارکننده (۷ صفحه) ===== */}
             <Route element={<OrganizerLayout />}>

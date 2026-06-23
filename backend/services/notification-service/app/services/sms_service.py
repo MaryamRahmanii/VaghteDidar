@@ -1,6 +1,7 @@
 import httpx
 
 from app.core.config import settings
+from app.core.exceptions import SMSDeliveryError
 
 
 async def send_sms(recipient_phone: str, message_body: str):
@@ -16,16 +17,16 @@ async def send_sms(recipient_phone: str, message_body: str):
                 "sender": settings.SMS_SENDER,
             })
     except httpx.RequestError as e:
-        raise Exception(f"Failed to reach SMS provider: {repr(e)}") from e
+        raise SMSDeliveryError(f"Failed to reach SMS provider: {repr(e)}") from e
 
     if response.status_code != 200:
-        raise Exception(f"SMS provider error: {response.status_code} — {response.text}")
+        raise SMSDeliveryError(f"SMS provider error: {response.status_code} — {response.text}")
 
     try:
         body = response.json()
     except ValueError as e:
-        raise Exception(f"SMS provider returned invalid JSON: {response.text}") from e
+        raise SMSDeliveryError(f"SMS provider returned invalid JSON: {response.text}") from e
 
     return_code = body.get("return", {}).get("status")
     if return_code != 200:
-        raise Exception(f"SMS provider rejected: {body.get('return', {}).get('message')}")
+        raise SMSDeliveryError(f"SMS provider rejected: {body.get('return', {}).get('message')}")

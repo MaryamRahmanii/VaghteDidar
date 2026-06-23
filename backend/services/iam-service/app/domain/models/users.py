@@ -13,6 +13,7 @@ class User(Base):
     full_name = Column(String(255), nullable=False)
     phone_number = Column(String(15), unique=True, nullable=False, index=True)
     role = Column(Enum(UserRole), nullable=False, default=UserRole.registrant)
+    profile_photo_id = Column(String(24), nullable=True)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())

@@ -1,10 +1,15 @@
 from uuid import UUID
 from sqlalchemy import select
-from app.domain.models.users import User, UserRole
+
+from app.domain.models.users import User
+from app.domain.user_role import UserRole
 
 
-async def get_user_by_id(db, user_id: str) -> User | None:
-    result = await db.execute(select(User).where(User.user_id == UUID(user_id)))
+async def get_user_by_id(db, user_id):
+    from uuid import UUID
+    parsed_id = user_id if isinstance(user_id, UUID) else UUID(str(user_id))
+    
+    result = await db.execute(select(User).where(User.user_id == parsed_id))
     return result.scalar_one_or_none()
 
 
@@ -14,9 +19,9 @@ async def get_user_by_phone(db, phone_number: str) -> User | None:
 
 
 async def create_user(
-    db, 
-    phone_number: str, 
-    full_name: str, 
+    db,
+    phone_number: str,
+    full_name: str,
     role=UserRole.registrant
 ) -> User:
     user = User(phone_number=phone_number, full_name=full_name, role=role)

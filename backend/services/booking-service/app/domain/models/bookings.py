@@ -1,5 +1,7 @@
 import uuid
-from sqlalchemy import Column, String, Text, DateTime, Enum, Integer, Boolean, ForeignKey
+from sqlalchemy import (
+    Column, String, Text, DateTime, Enum, Integer, Boolean, ForeignKey
+)
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -8,6 +10,16 @@ from app.database.database import Base
 
 from app.domain.booking_status import BookingStatus
 from app.domain.session_status import SessionStatus
+
+
+class OrganizerProfile(Base):
+    __tablename__ = "organizer_profiles"
+
+    organizer_id = Column(UUID(as_uuid=True), primary_key=True)
+    name = Column(String(255), nullable=False)
+    specialty = Column(String(255), nullable=True)
+    avatar_url = Column(String(512), nullable=True)
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
 
 class Event(Base):

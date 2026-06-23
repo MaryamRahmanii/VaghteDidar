@@ -1,58 +1,92 @@
 import React, { useState, useContext, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { UserContext } from './context/user-context'; 
+import { iamApi } from '../../services/api';
 
 const EditProfile = () => {
   const navigate = useNavigate();
-  const { userData, setUserData } = useContext(UserContext); 
+  const { userData, fetchUser } = useContext(UserContext); 
   
-
   const [formData, setFormData] = useState({
-    name: userData.name,
-    phone: userData.phone
+    name: userData?.full_name || '',
+    phone: userData?.phone_number || ''
   });
 
-  const [previewAvatar, setPreviewAvatar] = useState(userData.avatar);
+  const [previewAvatar, setPreviewAvatar] = useState(
+    userData?.profile_photo_url ? `http://localhost:8001${userData.profile_photo_url}` : ''
+  );
+  
+  const [selectedFile, setSelectedFile] = useState(null); 
+  const [isAvatarDeleted, setIsAvatarDeleted] = useState(false); 
   const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
   
   const fileInputRef = useRef(null);
 
   const handleChange = (e) => {
+    setErrorMessage('');
     setFormData({
       ...formData,
       [e.target.name]: e.target.value
     });
   };
 
-  
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-     
+      setSelectedFile(file); 
+      setIsAvatarDeleted(false);
       const imageUrl = URL.createObjectURL(file);
-      setPreviewAvatar(imageUrl);
+      setPreviewAvatar(imageUrl); 
     }
   };
 
-
   const handleRemoveImage = () => {
     setPreviewAvatar(''); 
+    setSelectedFile(null);
+    setIsAvatarDeleted(true); 
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
+    setErrorMessage('');
 
-    setTimeout(() => {
-      setIsLoading(false);
+    try {
+      if (isAvatarDeleted && userData?.profile_photo_url) {
+        await iamApi.delete('/profile/photo');
+      } 
+      else if (selectedFile) {
+        const uploadData = new FormData();
+        uploadData.append('file', selectedFile);
+        
+        await iamApi.post('/profile/photo', uploadData, {
+          headers: {
+            'Content-Type': 'multipart/form-data'
+          }
+        });
+      }
+
       
-      setUserData({
-        name: formData.name,
-        phone: formData.phone,
-        avatar: previewAvatar
+      await iamApi.put('/profile/info', {
+        full_name: formData.name,
+        phone_number: formData.phone
       });
+
+      await fetchUser();
       navigate('/profile');
-    }, 1500);
+      
+    } catch (error) {
+      console.error("خطا در بروزرسانی پروفایل:", error);
+      
+      if (error.response && error.response.status === 400) {
+        setErrorMessage(error.response.data.detail || "این شماره موبایل قابل استفاده نیست.");
+      } else {
+        setErrorMessage("خطا در برقراری ارتباط با سرور. لطفا مجدداً تلاش کنید.");
+      }
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -70,18 +104,15 @@ const EditProfile = () => {
           </Link>
         </div>
 
-        
-        <div className="flex flex-col items-center mb-8 relative z-10">
+        <div className="flex flex-col items-center mb-6 relative z-10">
           <div className="w-24 h-24 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden border-4 border-white dark:border-[#1a2235] shadow-md relative group">
             {previewAvatar ? (
               <img src={previewAvatar} alt="آواتار" className="w-full h-full object-cover" />
             ) : (
-              
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-full h-full text-gray-400 p-4">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
               </svg>
             )}
-            
             
             <div 
               onClick={() => fileInputRef.current.click()}
@@ -122,7 +153,12 @@ const EditProfile = () => {
           />
         </div>
 
-       
+        {errorMessage && (
+          <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl text-center">
+            <p className="text-xs font-bold text-red-600 dark:text-red-400">{errorMessage}</p>
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="space-y-5 relative z-10">
           <div>
             <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-2">نام و نام خانوادگی</label>
@@ -153,7 +189,7 @@ const EditProfile = () => {
                 onChange={handleChange}
                 dir="ltr"
                 required
-                className="w-full bg-gray-50 dark:bg-[#111827] border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3.5 text-sm text-gray-800 dark:text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors text-left" 
+                className="w-full bg-gray-50 dark:bg-[#111827] border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3.5 text-sm text-gray-800 dark:text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors text-left font-medium" 
               />
               <div className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">

@@ -1,30 +1,25 @@
 import React, { useState, useEffect, useContext } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { UserContext } from './context/user-context';
-import { bookingApi } from '../../services/api';
+import { bookingApi, notificationApi } from '../../services/api';
 
 const Profile = () => {
   const { userData } = useContext(UserContext);
-  
+  const navigate = useNavigate();
   
   const [activeTab, setActiveTab] = useState('آینده');
   const [appointments, setAppointments] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-  
   
   const [showNewReserveModal, setShowNewReserveModal] = useState(false);
   const [selectedAppointmentDetails, setSelectedAppointmentDetails] = useState(null);
   const [showLimitModal, setShowLimitModal] = useState(false);
   const [organizerId, setOrganizerId] = useState('');
 
- 
-  const [displayedNotifs, setDisplayedNotifs] = useState([
-    { id: 1, title: 'رزرو موفق', desc: 'نوبت شما با دکتر احمدی ثبت شد', time: '۱۰ دقیقه پیش', type: 'success', unread: true },
-    { id: 2, title: 'پیام پشتیبانی', desc: 'تغییر زمان نوبت شما...', time: '۱ ساعت پیش', type: 'message', unread: false }
-  ]);
+  
+  const [displayedNotifs, setDisplayedNotifs] = useState([]);
   const [showAllNotifs, setShowAllNotifs] = useState(false);
 
-  
   const activeAppointments = appointments.filter(a => a.status === 'آینده');
   const activeAppointmentsCount = activeAppointments.length;
   const filteredAppointments = appointments.filter(a => a.status === activeTab);
@@ -35,10 +30,10 @@ const Profile = () => {
       const response = await bookingApi.get('/bookings/me');
       const formattedBookings = response.data.map(item => ({
         id: item.id,
-        name: 'برگزار کننده',
-        title: 'مشاوره',
-        date: new Date(item.created_at).toLocaleDateString('fa-IR'),
-        time: '',
+        name: item.organizer_name || 'برگزار کننده',
+        title: item.meeting_title || 'مشاوره',
+        date: item.appointment_date || new Date(item.created_at).toLocaleDateString('fa-IR'),
+        time: item.appointment_time || '',
         status: item.status === 'active' ? 'آینده' : (item.status === 'cancelled' ? 'لغو شده' : 'گذشته'),
         color: 'bg-blue-100'
       }));
@@ -47,6 +42,28 @@ const Profile = () => {
       console.error("خطا در دریافت نوبت‌ها", error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  
+  const fetchNotifications = async () => {
+    if (!userData?.phone_number) return;
+    
+    try {
+      const response = await notificationApi.get(`/notifications/history?phone=${userData.phone_number}`);
+      
+      const formattedNotifs = response.data.map((item, index) => ({
+        id: item.id || index,
+        title: item.type === 'otp' ? 'پیامک سیستمی' : 'اعلان رزرو',
+        desc: item.message_body,
+        time: new Date(item.created_at).toLocaleString('fa-IR'),
+        type: item.status === 'sent' ? 'success' : 'message',
+        unread: index === 0 // فقط اعلان اول به صورت خوانده‌نشده نمایش داده می‌شود
+      }));
+      
+      setDisplayedNotifs(formattedNotifs);
+    } catch (error) {
+      console.error("خطا در دریافت اعلان‌ها", error);
     }
   };
 
@@ -62,14 +79,23 @@ const Profile = () => {
 
   const handleSearchOrganizer = (e) => {
     e.preventDefault();
-    console.log("جستجو برای:", organizerId);
-    
+    if (!organizerId.trim()) return;
     setShowNewReserveModal(false);
+    navigate('/public-organizer-dashboard', { 
+      state: { orgId: organizerId } 
+    });
   };
 
   useEffect(() => {
     fetchMyBookings();
   }, []);
+
+  
+  useEffect(() => {
+    if (userData?.phone_number) {
+      fetchNotifications();
+    }
+  }, [userData]);
 
   return (
     <div className="container mx-auto px-4 sm:px-6 py-8" dir="rtl">
@@ -159,7 +185,7 @@ const Profile = () => {
         <div className="xl:col-span-1 order-last xl:order-1 bg-white dark:bg-[#1a2235] border border-blue-100 dark:border-gray-700 rounded-2xl p-5 sm:p-6 shadow-sm flex flex-col h-fit">
           <h3 className="font-bold text-lg text-gray-800 dark:text-white mb-6 text-center sm:text-right">اعلان ها</h3>
           <div className="flex flex-col space-y-4">
-            {displayedNotifs.map((notif) => (
+            {displayedNotifs.length > 0 ? displayedNotifs.map((notif) => (
               <div key={notif.id} className="relative border border-blue-100 dark:border-gray-600 rounded-xl p-4 flex items-start gap-4 bg-white dark:bg-[#1f2937]">
                 <div className={`p-2 rounded-full flex-shrink-0 ${
                   notif.type === 'success' ? 'bg-green-100 dark:bg-green-900/40 text-green-500' :
@@ -190,11 +216,13 @@ const Profile = () => {
                     'text-gray-700 dark:text-gray-300'
                   }`}>{notif.title}</h4>
                   <p className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 font-medium">{notif.desc}</p>
-                  <span className="text-[10px] text-gray-400 dark:text-gray-500 mt-2 block font-medium">{notif.time}</span>
+                  <span className="text-[10px] text-gray-400 dark:text-gray-500 mt-2 block font-medium" dir="ltr">{notif.time}</span>
                 </div>
                 {notif.unread && <div className="absolute bottom-4 left-4 w-2 h-2 bg-blue-500 rounded-full"></div>}
               </div>
-            ))}
+            )) : (
+              <p className="text-center text-xs text-gray-500 py-4">اعلان جدیدی وجود ندارد.</p>
+            )}
           </div>
           <div className="mt-6 flex justify-center w-full">
             <button onClick={() => setShowAllNotifs(!showAllNotifs)} className="inline-flex items-center text-xs font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400 transition-colors bg-gray-50 dark:bg-gray-800 px-4 py-2 rounded-full border border-blue-50 dark:border-gray-700 shadow-sm">
@@ -212,8 +240,8 @@ const Profile = () => {
             <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 sm:gap-6 w-full sm:w-auto text-center sm:text-right">
               
               <div className="w-24 h-24 bg-gray-200 dark:bg-gray-700 rounded-full flex-shrink-0 overflow-hidden border-4 border-white dark:border-[#1a2235] shadow-md">
-                {userData?.avatar ? (
-                  <img src={userData?.avatar} alt="آواتار" className="w-full h-full object-cover" />
+                {userData?.profile_photo_url ? (
+                  <img src={`http://localhost:8001${userData.profile_photo_url}`} alt="آواتار" className="w-full h-full object-cover" />
                 ) : (
                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-full h-full text-gray-400 p-4">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
@@ -355,20 +383,14 @@ const Profile = () => {
                   <div key={item.id} className="flex justify-between items-center bg-transparent border-b border-gray-100 dark:border-gray-700/50 last:border-0 pb-4 last:pb-0">
                     <div className="flex items-center gap-3">
                       <div className={`w-10 h-10 ${item.color} rounded-full overflow-hidden flex-shrink-0`}>
-                         
                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-full h-full text-blue-500 p-2 bg-blue-50 dark:bg-blue-900/30">
                            <path fillRule="evenodd" d="M7.5 6a4.5 4.5 0 1 1 9 0 4.5 4.5 0 0 1-9 0ZM3.751 20.105a8.25 8.25 0 0 1 16.498 0 .75.75 0 0 1-.437.695A18.683 18.683 0 0 1 12 22.5c-2.786 0-5.433-.608-7.812-1.7a.75.75 0 0 1-.437-.695Z" clipRule="evenodd" />
                          </svg>
                       </div>
                       <div>
                         <h4 className="text-sm font-bold text-gray-800 dark:text-gray-200">{item.name}</h4>
-                        <p className="text-[10px] text-gray-500 dark:text-gray-400">{item.spec}</p>
+                        <p className="text-[10px] text-gray-500 dark:text-gray-400">{item.title}</p>
                       </div>
-                    </div>
-
-                    <div className="text-center hidden sm:block">
-                      <span className="text-[10px] text-gray-400 dark:text-gray-500 block mb-0.5">عنوان جلسه</span>
-                      <span className="text-xs font-bold text-gray-600 dark:text-gray-300">{item.title}</span>
                     </div>
 
                     <div className="flex items-center justify-end text-xs text-gray-500 dark:text-gray-400 text-left min-w-[80px]">
