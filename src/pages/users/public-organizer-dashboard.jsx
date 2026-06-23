@@ -1,4 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+
+
+const PublicOrganizerDashboard = () => {
+  const navigate = useNavigate();
+  const { slug } = useParams(); // <-- دریافت از URL
 import { useNavigate, useLocation } from 'react-router-dom';
 import { bookingApi } from '../../services/api';
 
@@ -8,6 +14,10 @@ const PublicOrganizerDashboard = () => {
 
   const orgId = location.state?.orgId || '';
 
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+  
+  const orgId = slug || ''; // <-- استفاده از slug به جای location.state
   const monthsData = [
     { name: 'خرداد ۱۴۰۳', days: 31, startOffset: 3 },
     { name: 'تیر ۱۴۰۳', days: 31, startOffset: 6 },
@@ -38,6 +48,74 @@ const PublicOrganizerDashboard = () => {
   };
 
   
+  const fetchAvailableSlots = async (orgId, date) => {
+  // TODO: وقتی API آماده شد، این بخش را با درخواست واقعی جایگزین کنید
+  // داده‌های Mock برای تست
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      const allTimes = [
+        { id: '1', time: '۰۹:۰۰' },
+        { id: '2', time: '۱۰:۰۰' },
+        { id: '3', time: '۱۱:۰۰' },
+        { id: '4', time: '۱۵:۰۰' },
+        { id: '5', time: '۱۸:۰۰' },
+        { id: '6', time: '۱۹:۰۰' }
+      ];
+      const slots = allTimes.map((slot, index) => ({
+        ...slot,
+        isAvailable: (selectedDate.day * 3 + index) % 5 !== 0
+      }));
+      resolve(slots);
+    }, 500);
+  });
+};
+
+
+
+  
+//   useEffect(() => {
+//   const fetchAvailableSlots = async () => {
+//     if (!orgId || !selectedDate) return; // اگر شناسه یا تاریخ انتخاب نشده، خروج
+
+//     try {
+//       setIsLoading(true);
+      
+//       // تبدیل تاریخ به فرمت مناسب برای بک‌اند
+//       const year = 1402; // یا از تقویم شمسی دریافت کنید
+//       const month = selectedDate.month + 1;
+//       const day = selectedDate.day;
+//       const formattedDate = `${year}/${month.toString().padStart(2, '0')}/${day.toString().padStart(2, '0')}`;
+      
+//       // فراخوانی API
+//       const response = await iamApi.get(`/organizer/${orgId}/slots`, {
+//         params: { date: formattedDate }
+//       });
+      
+//       // تبدیل داده‌های دریافتی به فرمت مورد نظر
+//       const slots = response.data.map(slot => ({
+//         id: slot.id,
+//         time: slot.start_time, // یا هر فیلدی که زمان را نشان می‌دهد
+//         isAvailable: slot.is_available
+//       }));
+      
+//       setAvailableSlots(slots);
+//     } catch (error) {
+//       console.error('خطا در دریافت ساعات موجود:', error);
+//       setAvailableSlots([]);
+//       // می‌توانید یک پیام خطا به کاربر نشان دهید
+//     } finally {
+//       setIsLoading(false);
+//     }
+//   };
+
+//   fetchAvailableSlots();
+// }, [orgId, selectedDate]); // وابستگی‌ها: orgId و selectedDate
+
+
+
+  
+
+ 
   useEffect(() => {
     const fetchDashboardData = async () => {
       if (!orgId) return;
