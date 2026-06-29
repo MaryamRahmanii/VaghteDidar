@@ -8,6 +8,7 @@ const Signup = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState(''); 
   const navigate = useNavigate();
+  const [isOrganizer, setIsOrganizer] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -21,7 +22,9 @@ const Signup = () => {
         type: 'register' 
       });
       
-      navigate('/signup-otp', { state: { phone: phoneNumber, fullName: fullName } });
+      navigate('/signup-otp', { 
+  state: { phone: phoneNumber, fullName: fullName, isOrganizer: isOrganizer } 
+});
     } catch (error) {
       console.error(error);
       
@@ -80,6 +83,18 @@ const Signup = () => {
           <span className="text-gray-500 dark:text-gray-400">حساب کاربری دارید؟ </span>
           <Link to="/login" className="text-blue-500 hover:text-blue-600 font-medium">ورود</Link>
         </div>
+        <div className="flex items-center gap-2 mb-6">
+  <input
+    type="checkbox"
+    id="isOrganizer"
+    checked={isOrganizer}
+    onChange={(e) => setIsOrganizer(e.target.checked)}
+    className="w-4 h-4 text-blue-600 rounded border-gray-300"
+  />
+  <label htmlFor="isOrganizer" className="text-sm text-gray-700 dark:text-gray-300">
+    می‌خواهم به عنوان برگزارکننده ثبت‌نام کنم
+  </label>
+</div>
         <div className="flex justify-center pt-2 sm:pt-4">
           <button
             type="submit"

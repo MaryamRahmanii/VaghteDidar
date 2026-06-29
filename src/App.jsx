@@ -34,8 +34,8 @@ import EventMonitoring from './pages/admin/event-monitoring';
 
 import { ThemeProvider } from './contexts/ThemeContext';
 
-// Fake Components (در صورت نیاز برای تست)
-const FakeAdmin = () => <div className="p-10 text-center font-bold text-2xl">سلام ادمین جان! خوش اومدی به پنل خودت.</div>;
+
+const FakeAdmin = () => <div className="p-10 text-center font-bold text-2xl">سلام ادمین! خوش اومدی به پنل خودت.</div>;
 const FakeOrganizer = () => <div className="p-10 text-center font-bold text-2xl">سلام برگزارکننده! اینجا داشبورد شماست.</div>;
 
 function App() {

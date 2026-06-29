@@ -11,28 +11,29 @@ const SignupOtp = () => {
   const location = useLocation();
   const { fetchUser } = useContext(UserContext);
 
-  const userPhone = location.state?.phone || '';
-  const userFullName = location.state?.fullName || 'کاربر جدید';
+  // دریافت اطلاعات ارسالی از صفحه signup
+  const { phone, fullName, isOrganizer } = location.state || {};
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
     
+    // انتخاب اندپوینت بر اساس نقش انتخاب شده
+    const endpoint = isOrganizer ? '/auth/otp/signup-organizer/verify' : '/auth/otp/signup/verify';
+    
     try {
-      const response = await iamApi.post('/auth/otp/signup/verify', {
-        phone_number: userPhone,
+      const response = await iamApi.post(endpoint, {
+        phone_number: phone,
         otp_code: otp,
-        full_name: userFullName 
+        full_name: fullName 
       });
       
       localStorage.setItem('access_token', response.data.access_token);
-      
       await fetchUser();
-      
       
       const userRole = response.data.role;
 
-      
+      // هدایت کاربر بر اساس رول دریافتی
       if (userRole === 'admin') {
         navigate('/admin-dashboard');
       } else if (userRole === 'organizer') {
@@ -43,7 +44,7 @@ const SignupOtp = () => {
       
     } catch (error) {
       console.error(error);
-      alert('کد وارد شده نامعتبر است.');
+      alert('کد وارد شده نامعتبر است یا خطایی رخ داده است.');
     } finally {
       setIsLoading(false);
     }
@@ -53,7 +54,7 @@ const SignupOtp = () => {
     <div className="w-11/12 sm:w-full max-w-sm bg-white dark:bg-[#1f2937] rounded-2xl border-2 border-blue-100 dark:border-transparent px-6 py-10 sm:px-8 sm:py-12 shadow-sm mx-auto">
       <h1 className="text-xl sm:text-2xl font-bold text-center text-gray-800 dark:text-white mb-2">تایید شماره موبایل</h1>
       <p className="text-center text-xs sm:text-sm text-gray-500 dark:text-gray-400 mb-8 sm:mb-10">
-        <span className="font-bold text-gray-700 dark:text-gray-200" dir="ltr">{userPhone}</span>
+        <span className="font-bold text-gray-700 dark:text-gray-200" dir="ltr">{phone}</span>
       </p>
       <form onSubmit={handleSubmit} className="space-y-6 sm:space-y-7">
         <div>

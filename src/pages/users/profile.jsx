@@ -24,6 +24,13 @@ const Profile = () => {
   const activeAppointmentsCount = activeAppointments.length;
   const filteredAppointments = appointments.filter(a => a.status === activeTab);
 
+  const { logout } = useContext(UserContext);
+
+  const handleLogout = () => {
+  logout();
+  window.location.href = '/login';
+};
+
   const fetchMyBookings = async () => {
     setIsLoading(true);
     try {
@@ -287,6 +294,12 @@ const Profile = () => {
               >
                 رزرو جدید
               </button>
+              <button 
+  onClick={handleLogout}
+  className="w-full py-2 border-2 border-red-400 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg text-sm font-bold transition-colors text-center"
+>
+  خروج از حساب
+</button>
             </div>
           </div>
 

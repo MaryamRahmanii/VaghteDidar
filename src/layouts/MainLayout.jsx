@@ -77,7 +77,7 @@ const MainLayout = () => {
           <Link to="#">تماس با ما</Link>
           <Link to="#">حریم خصوصی</Link>
         </div>
-        <p className="text-xs text-gray-400">© 2026 Nobito. All rights reserved</p>
+        <p className="text-xs text-gray-400">©VaghteDidar. All rights reserved 2026</p>
       </footer>
 
     </div>

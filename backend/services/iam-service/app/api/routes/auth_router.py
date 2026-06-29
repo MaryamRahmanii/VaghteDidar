@@ -11,6 +11,7 @@ from app.domain.schemas.users import (
 
 from app.services import otp_service, session_service
 from app.infrastructure.repositories import user_repository
+from app.domain import user_role
 
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
@@ -106,3 +107,31 @@ async def me(user=Depends(get_current_user)):
         is_active=user.is_active,
         created_at=user.created_at
     )
+    
+    
+    
+@router.post("/otp/signup-organizer/verify", response_model=TokenResponseSchema)
+async def verify_signup_organizer_otp(body: OTPSignupVerifySchema, db=Depends(get_db)):
+    try:
+        await otp_service.verify_otp(body.phone_number, body.otp_code)
+    except Exception:
+        raise HTTPException(
+            detail="کد تایید اشتباه یا منقضی شده است.",
+            status_code=status.HTTP_401_UNAUTHORIZED
+        )
+    user = await user_repository.get_user(db, body.phone_number)
+    if user:
+        raise HTTPException(
+            detail=f"کاربر قبلاً ثبت‌نام کرده است",
+            status_code=status.HTTP_400_BAD_REQUEST
+        )
+    
+    # حالا که UserRole ایمپورت شده، این خط دیگه ارور نمیده
+    new_user = await user_repository.create_user(
+        db,
+        phone_number=body.phone_number,
+        full_name=body.full_name,
+        role=user_role.UserRole.organizer 
+    )
+    token = await session_service.create_session(str(new_user.user_id), new_user.role.value)
+    return TokenResponseSchema(access_token=token, role=new_user.role)

@@ -9,6 +9,12 @@ export const UserProvider = ({ children }) => {
   const [userData, setUserData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  const logout = () => {
+  localStorage.removeItem('access_token');
+  setUserData(null);
+  
+};
+
   const fetchUser = async () => {
     const token = localStorage.getItem('access_token');
     if (!token) {
@@ -43,7 +49,7 @@ export const UserProvider = ({ children }) => {
   }, []);
 
   return (
-    <UserContext.Provider value={{ userData, setUserData, fetchUser, isLoading }}>
+    <UserContext.Provider value={{ userData, setUserData, fetchUser, isLoading, logout }}>
       {children}
     </UserContext.Provider>
   );
